@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -175,6 +175,30 @@ class PoolSnapshot(Contract):
     liquidity_usd: Annotated[Decimal, Field(ge=0)] | None = None
     pool_created_at: UTCDateTime | None = None
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class HolderBalance(Contract):
+    """Raw token amount held by one owner, summed over that owner's largest token accounts."""
+
+    owner: str
+    amount: int = Field(ge=0)
+    program_controlled: bool  # owner is a program-derived address (pool vault, bonding curve, locker)
+
+
+class TokenOnchainInfo(Contract):
+    """Mint state and largest holders, read from a Solana RPC node."""
+
+    mint: str
+    retrieved_at: UTCDateTime
+    token_program: Literal["spl-token", "spl-token-2022"]
+    supply: int = Field(ge=0)  # raw units (10**decimals per token)
+    decimals: int = Field(ge=0)
+    mint_authority: str | None
+    freeze_authority: str | None
+    extensions: tuple[str, ...] = ()  # Token-2022 extension names
+    holders: tuple[HolderBalance, ...]  # from the largest accounts the RPC returns (up to 20), largest first
+    accounts_seen: int = Field(ge=0)
+    smallest_account_seen: int = Field(ge=0)  # upper bound for any holder not in the list
 
 
 class SafetyStatus(StrEnum):

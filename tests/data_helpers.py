@@ -29,10 +29,15 @@ class ScriptedTransport:
         self.script = list(script)
         self.urls: list[str] = []
         self.headers: list[dict[str, str]] = []
+        self.bodies: list[bytes | None] = []
 
     def get(self, url: str, headers: dict[str, str], timeout_s: float) -> HttpResponse:
+        return self.post(url, None, headers, timeout_s)
+
+    def post(self, url: str, body: bytes | None, headers: dict[str, str], timeout_s: float) -> HttpResponse:
         self.urls.append(url)
         self.headers.append(headers)
+        self.bodies.append(body)
         item = self.script.pop(0)
         if isinstance(item, Exception):
             raise item

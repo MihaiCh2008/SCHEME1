@@ -56,6 +56,13 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Consequences:** backtests fetch history at run time instead of reading an archive. Survivorship bias can't be fixed with our own archive. Long-term storage of derived records is an open question (see docs/STAGE3_DATA.md section 1a, item 8).
 
 ## D12. Token safety: two providers, conservative merge, unverified blocks (2026-10-12)
-- **Choice:** liquidity uses the lower of the GeckoTerminal and DexScreener figures, and is unverified if they differ by more than 1.5×. Pool age uses the youngest reported creation date. The base-token mint must match across both. Mint authority, freeze authority and holder concentration are required checks that stay `unverified` (blocking) until an on-chain source is connected.
-- **Why:** the providers already disagree on pool age by months for BONK/SOL, and a single bad figure must not unlock trading. Blocking by default follows D9.
-- **Consequence:** no token is tradable until Solana on-chain data is available (blocked from the cloud session today).
+- **Choice:**
+  - Liquidity uses the lower of the GeckoTerminal and DexScreener figures, and is unverified if they differ by more than 1.5×.
+  - Pool age uses the youngest reported creation date.
+  - The base-token mint must match across both.
+  - From Solana RPC: mint and freeze authority must be revoked; Token-2022 extensions must be on a metadata-only allow-list; the largest wallet must hold ≤ 10% and the top 10 wallets ≤ 30% of supply.
+  - Program-derived owners (pool vaults, bonding curves, lockers) are identified with the Ed25519 curve test and excluded from concentration.
+  - Missing or stale data makes a check `unverified`, which blocks like `fail`.
+- **Why:** the providers already disagree on pool age by months for BONK/SOL, and a single bad figure must not unlock trading. Mint and freeze authority, dangerous Token-2022 extensions and whale wallets are the common ways memecoin holders lose everything. Blocking by default follows D9.
+- **Alternatives:** third-party rug-check services. Rejected for now: another dependency with its own terms, and their scores can't be audited line by line (the same reason as D1).
+- **Consequence:** no token is tradable until the RPC checks run. The RPC is blocked from the cloud session today.

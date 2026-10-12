@@ -24,10 +24,19 @@ class Transport(Protocol):
     def get(self, url: str, headers: dict[str, str], timeout_s: float) -> HttpResponse:
         """Return the response for any HTTP status. Raise ``TimeoutError`` or ``OSError`` on network failure."""
 
+    def post(self, url: str, body: bytes, headers: dict[str, str], timeout_s: float) -> HttpResponse:
+        """Same contract as ``get``."""
+
 
 class UrllibTransport:
     def get(self, url: str, headers: dict[str, str], timeout_s: float) -> HttpResponse:
-        req = urllib.request.Request(url, headers=headers, method="GET")
+        return self._send(urllib.request.Request(url, headers=headers, method="GET"), timeout_s)
+
+    def post(self, url: str, body: bytes, headers: dict[str, str], timeout_s: float) -> HttpResponse:
+        return self._send(urllib.request.Request(url, data=body, headers=headers, method="POST"), timeout_s)
+
+    @staticmethod
+    def _send(req: urllib.request.Request, timeout_s: float) -> HttpResponse:
         try:
             with urllib.request.urlopen(req, timeout=timeout_s) as resp:
                 return HttpResponse(resp.status, resp.read(), {k.lower(): v for k, v in resp.headers.items()})
@@ -102,11 +111,18 @@ class PacedClient:
         self._last_request = self._clock.monotonic()
 
     def get(self, url: str) -> HttpResponse:
+        return self._request(lambda: self._transport.get(url, self._headers, self._retry.timeout_s), url)
+
+    def post(self, url: str, body: bytes, content_type: str = "application/json") -> HttpResponse:
+        headers = {**self._headers, "Content-Type": content_type}
+        return self._request(lambda: self._transport.post(url, body, headers, self._retry.timeout_s), url)
+
+    def _request(self, send: Callable[[], HttpResponse], url: str) -> HttpResponse:
         last: HttpError | None = None
         for attempt in range(1, self._retry.max_attempts + 1):
             self._pace()
             try:
-                resp = self._transport.get(url, self._headers, self._retry.timeout_s)
+                resp = send()
             except TimeoutError as err:
                 last = HttpError("timeout", str(err) or "request timed out", attempts=attempt)
                 wait = self._retry.backoff_s * 2 ** (attempt - 1)

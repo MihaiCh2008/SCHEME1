@@ -35,3 +35,9 @@ Fetch real candles for one Solana pool into a local SQLite file (needs internet 
 ```sh
 python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9 --interval 5m --db desk.db
 ```
+
+Check whether a pool's token passes the safety checks (needs internet access to GeckoTerminal, DexScreener and a Solana RPC node; set `SCHEME1_SOLANA_RPC_URL` to use your own RPC provider):
+
+```sh
+python -m scheme1.safety.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9
+```
