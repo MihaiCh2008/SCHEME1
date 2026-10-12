@@ -31,7 +31,9 @@ Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --p
 
 ## Missing access and limitations
 
-- **GeckoTerminal and DexScreener APIs work from the cloud session** (verified 2026-10-12). Their documentation and terms pages (`www.geckoterminal.com`, `apiguide.geckoterminal.com`, `docs.dexscreener.com`) are blocked, so **the terms of use are unverified**. Please read them yourself.
+- **GeckoTerminal and DexScreener APIs work from the cloud session** (verified 2026-10-12). Their website terms were read on 2026-10-12 (text supplied by the user): personal, non-commercial use; no redistribution of GeckoTerminal content; no excessive load. See DECISIONS.md D11.
+- **Still unread: the CoinGecko API Terms of Service** (coingecko.com/en/api_terms), which govern GeckoTerminal API use and data storage. Please paste them the same way. The DexScreener API terms page is also unread.
+- This repository is public. No provider data is committed (the one real response was replaced with synthetic data), but it remains in git history at commit 7be4292.
 - GeckoTerminal's free limit is about 10 calls/minute (a 429 was observed). That caps how many pools can be watched.
 - **Centralized-exchange APIs are blocked in the cloud session.** `api.binance.com`, `data-api.binance.vision`, `data.binance.vision`, `api.exchange.coinbase.com`, `api.kraken.com`, `api.bybit.com` and `www.okx.com` all got 403 from the environment proxy. PyPI and GitHub work. Real-data steps must run on your PC, or the environment must allow the chosen host.
 - No LLM provider is configured. None is needed until Stage 5 phase 2.

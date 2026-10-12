@@ -48,3 +48,8 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Alternatives:** DexScreener has no candle endpoint (verified: 404), so it can't feed features or backtests. CoinGecko's paid on-chain API has the same data with higher limits; it's an option if the free limit becomes the bottleneck.
 - **Consequences:** symbols are `solana:<pool address>`; candle volume is in USD; the newest candle is often still open and is dropped by the validator. DexScreener stays a candidate second source for liquidity and pool age, since the two providers already disagree on pool age for BONK/SOL.
 - Evidence: [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md).
+
+## D11. Provider terms: personal, local, non-commercial use (2026-10-12)
+- **Choice:** SCHEME1 is a personal tool. Provider data stays on the user's machine. It is not committed, published or served beyond localhost. Test fixtures that mimic a provider are synthetic.
+- **Why:** GeckoTerminal's Website Terms (11 Aug 2025, clauses 4.1–4.5) restrict storing and redistributing its content to what its API Terms allow, and grant only a personal, non-commercial licence. DEX Screener's terms (26 Apr 2025) forbid unreasonable load and implied endorsement.
+- **Open:** the CoinGecko API Terms of Service (coingecko.com/en/api_terms) are unread. They decide whether keeping fetched candle history locally is allowed. Until then, stored history is for research on the user's own machine only. Details: [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md) section 1a.

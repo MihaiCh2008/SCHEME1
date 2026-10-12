@@ -18,7 +18,7 @@ _Checked from the cloud session on 2026-10-12._
 | 429 response | Body `{"status":{"error_code":429,...}}` with **`retry-after: 0`**, so the header can't be trusted | n/a |
 | API versioning | `Accept: application/json;version=20230203` (we send it) | `schemaVersion: "1.0.0"` in the body |
 | Liquidity field | Pool `reserve_in_usd`, `locked_liquidity_percentage`, `pool_created_at` | Pair `liquidity.usd/base/quote`, `pairCreatedAt` (ms) |
-| Terms of use | **Not verified**: `www.geckoterminal.com` and `apiguide.geckoterminal.com` are blocked by the environment proxy | **Not verified**: `docs.dexscreener.com` is blocked |
+| Terms of use | Website Terms (11 Aug 2025) read, supplied by the user. The **API Terms of Service** they defer to are still unread (blocked here). See section 1a. | Website Terms (26 Apr 2025) read, supplied by the user. A separate API terms page, if there is one, is unread. See section 1a. |
 
 Other findings:
 - **The two providers disagree on pool age.** For the BONK/SOL Orca pool, GeckoTerminal says `pool_created_at = 2023-07-05` and DexScreener says `pairCreatedAt = 2022-12-25`. A token-age safety check (D9) must not trust a single source.
@@ -26,7 +26,33 @@ Other findings:
 
 **Choice:** GeckoTerminal is the candle provider (it is the only one of the two with candles). DexScreener stays a candidate cross-check for liquidity and pool age in the token-safety work. See DECISIONS.md D10.
 
-**You need to check:** please read the GeckoTerminal and DexScreener terms of use yourself (on your PC) before relying on this for anything beyond personal research. We could not read them from here.
+## 1a. Terms of use (read 2026-10-12, text supplied by the user)
+
+Our reading of the terms, not legal advice.
+
+**GeckoTerminal Website Terms of Use** (Gecko Labs Pte. Ltd., version of 11 August 2025):
+- **Clause 3.3:** the GeckoTerminal API is free "subject to compliance with our API Terms of Service" (coingecko.com/en/api_terms). Those API terms decide what we may store and how. **They are still unread**, because coingecko.com is blocked from the cloud session.
+- **Clauses 4.1–4.2:** without written consent or permission in the API Terms, you may not "reproduce, copy, download, … extract, store, distribute, … publish" their content. Any permitted use is a revocable, non-transferable licence "on … devices that are under and securely in your control".
+- **Clauses 4.4–4.5:** the general licence is for "Personal Use … not for any commercial purpose".
+- **Clause 9.1:** no scraping, data mining or "interfere[nce]" without consent.
+- **Clause 1.1:** you must be 18 or older and not in an excluded country.
+- **Clauses 3.1–3.2 and 8.2–8.3:** no warranty of accuracy, including "correctness of financial data and trading volume"; the data is "not meant for any reliance".
+- **Clause 2.2:** the terms can change without notice.
+
+**DEX Screener Terms and Conditions** (version of 26 April 2025):
+- No explicit storage or redistribution clause in the website terms.
+- **Abusive Activity:** forbids "an unreasonable or disproportionately large load on Our infrastructure".
+- Also forbids implying endorsement or affiliation, and using their name or logo without consent.
+- Access can be terminated "for any reason". No accuracy warranty. You must be 18 or older and not in an embargoed country.
+- These are the website terms. A separate API terms page (docs.dexscreener.com/api/…) is unread.
+
+**What this means for SCHEME1:**
+1. Personal, non-commercial, local use only. The data and the desk database stay on your own machine. Never publish, sell or host the stored data or dashboards built from it. The dashboard (Stage 11) must stay bound to localhost.
+2. **No provider data in this public repository.** The real GeckoTerminal response committed in Stage 3 was replaced with a synthetic file in the same layout. `*.db` files are already git-ignored. **The removed file is still in git history** (commit 7be4292). Removing it from history needs a force-push; that's your call.
+3. Local storage of fetched candles (`raw_batches`, `clean_candles`) is what this design needs. Clause 4.1 only allows it where the API Terms permit it, so **the CoinGecko API Terms of Service must be read before relying on stored history.** If they forbid retention, the store needs a retention limit.
+4. Use the documented API with conservative pacing (already about 9 calls/min, with a 60 s back-off on 429). Never scrape the website.
+5. Neither provider guarantees the data. That backs up the existing rule that bad or stale data blocks entries, and the DexScreener cross-check.
+6. Don't use either provider's name or logo in a way that suggests endorsement. Plain attribution ("data: GeckoTerminal") in the local UI is fine.
 
 ## 2. What was built
 
@@ -67,7 +93,7 @@ DEGRADED, STALE and UNAVAILABLE all block new entries downstream (the `Decision`
 ## 3. Evidence
 
 - `python -m pytest`: 55 passed (14 contract tests, 41 new data tests). None of the tests touch the network: HTTP is a scripted fake and sleeps go through a fake clock. The tests cover timeouts, 429 with `retry-after: 0`, 5xx exhaustion, non-retryable 400, malformed and empty payloads, bad rows, every validator rule, store rollback, revisions and gaps between batches.
-- One real GeckoTerminal response is stored unmodified in `tests/fixtures/geckoterminal_bonk_sol_5m_recorded.json` and parsed in tests, so the parser is checked against the real shape.
+- `tests/fixtures/geckoterminal_shape_5m.json` copies the exact layout of a real GeckoTerminal response with synthetic numbers, so the parser is tested against the real shape without redistributing their data.
 - Live run from the cloud session on 2026-10-12, BONK/SOL pool `5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9`:
   - `--interval 5m --limit 300`: status ok, 300 in, 299 clean (newest open bar dropped), no issues.
   - `--interval 1m --limit 1000`: status ok, 1000 in, 999 clean, no gaps.

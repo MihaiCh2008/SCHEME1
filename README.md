@@ -28,7 +28,7 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
-Fetch real candles for one Solana pool into a local SQLite file (needs internet access to `api.geckoterminal.com`):
+Fetch real candles for one Solana pool into a local SQLite file (needs internet access to `api.geckoterminal.com`). The data is for your own personal, non-commercial use under GeckoTerminal's terms. Keep `desk.db` on your machine and don't publish it (see DECISIONS.md D11).
 
 ```sh
 python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9 --interval 5m --db desk.db

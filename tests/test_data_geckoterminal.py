@@ -14,7 +14,8 @@ from scheme1.data.providers.geckoterminal import GeckoTerminalProvider, split_sy
 from scheme1.data.validate import validate_batch
 from data_helpers import FakeClock, ScriptedTransport
 
-RECORDED = Path(__file__).parent / "fixtures" / "geckoterminal_bonk_sol_5m_recorded.json"
+# Synthetic numbers in the exact response layout GeckoTerminal returned on 2026-10-12 (see tests/fixtures/README.md).
+RECORDED = Path(__file__).parent / "fixtures" / "geckoterminal_shape_5m.json"
 BONK = "solana:5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9"
 RECORDED_AT = datetime(2026, 10, 12, 18, 21, 22, tzinfo=timezone.utc)
 
@@ -29,7 +30,7 @@ def body(rows):
     return json.dumps({"data": {"attributes": {"ohlcv_list": rows}}}).encode()
 
 
-def test_parses_recorded_response_exactly():
+def test_parses_response_shape_exactly():
     raw = RECORDED.read_bytes()
     gt, transport = provider(HttpResponse(200, raw))
     result = gt.fetch_candles(BONK, Interval.M5, limit=5)
@@ -42,8 +43,8 @@ def test_parses_recorded_response_exactly():
     assert [c.open_time.minute for c in batch.candles] == [0, 5, 10, 15, 20]  # oldest first
     assert [c.closed for c in batch.candles] == [True, True, True, True, False]  # 18:20 bar still open
     # numbers keep the provider's exact decimal text (no binary float artefacts)
-    assert batch.candles[3].close == Decimal("3.310323227757079e-06")
-    assert batch.candles[0].open == Decimal("3.292086369263938e-06")
+    assert batch.candles[3].close == Decimal("1.234567890123456e-06")
+    assert batch.candles[0].open == Decimal("1.2287654321098765e-06")
     assert batch.parse_issues == ()
 
     report = validate_batch(batch, RECORDED_AT).report
