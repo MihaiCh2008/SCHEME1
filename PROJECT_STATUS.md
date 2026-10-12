@@ -8,7 +8,7 @@ _Last updated: 2026-10-12 (Stage 4b live check)_
 | 2 | Architecture and interfaces | **Done (proposal)**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); contracts in `src/scheme1/contracts.py` |
 | 3 | Data pipeline | **Done**: [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md); code in `src/scheme1/data/` |
 | 4 | Deterministic quantitative logic | **Done**: [docs/STAGE4_FEATURES.md](docs/STAGE4_FEATURES.md); features in `src/scheme1/features/`, token safety in `src/scheme1/safety/` |
-| 4b | On-chain token checks | **Verified live, 3 of 4 checks**: mint authority, freeze authority and extensions pass for BONK; holder concentration needs a non-public RPC (see below) |
+| 4b | On-chain token checks | **Verified live, all 4 checks run** (Helius free plan). BONK fails holder concentration; see below |
 | 5 | Research agents | Not started |
 | 6 | Decision and risk engines | Not started |
 | 7 | Paper execution and accounting | Not started |
@@ -39,7 +39,8 @@ Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --p
 - GeckoTerminal's free limit is about 10 calls/minute (a 429 was observed). That caps how many pools can be watched.
 - **Centralized-exchange APIs are blocked in the cloud session.** `api.binance.com`, `data-api.binance.vision`, `data.binance.vision`, `api.exchange.coinbase.com`, `api.kraken.com`, `api.bybit.com` and `www.okx.com` all got 403 from the environment proxy. PyPI and GitHub work. Real-data steps must run on your PC, or the environment must allow the chosen host.
 - **Solana RPC (`api.mainnet-beta.solana.com`) is reachable from the cloud session** (verified 2026-10-12). Live run of `python -m scheme1.safety.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9`: mint authority revoked, freeze authority revoked, `spl-token` with no extensions, matching the parser exactly. Other public RPCs tried (publicnode, ankr, drpc) are blocked by the proxy.
-- **The public endpoint refuses `getTokenLargestAccounts`** with HTTP 429 on every call, for every token tried (BONK, WIF), even after waiting. So `holder_concentration` stays unverified and **every token is still blocked**. Fix: set `SCHEME1_SOLANA_RPC_URL` to a free Helius or QuickNode URL (and allow that host in the network settings if running here). A failed holder lookup no longer discards the mint checks. Each run waits about 3 minutes on the 429 retries.
+- **The public endpoint refuses `getTokenLargestAccounts`** with HTTP 429 on every call, for every token tried (BONK, WIF), even after waiting. So `holder_concentration` stays unverified and **every token is still blocked**. A failed holder lookup no longer discards the mint checks.
+- **Helius free plan works** (1M credits/month, no card; verified 2026-10-12). The environment sets `SCHEME1_SOLANA_RPC_URL` to a Helius URL and allows `mainnet.helius-rpc.com`. A full BONK check takes about 5 seconds. Live result: mint authority revoked, freeze authority revoked, no extensions, **holder concentration FAIL**: largest wallet 8.83%, top 10 wallets 38.41% (limit 30%), program-controlled 0.99%. So BONK is blocked.
 - No LLM provider is configured. None is needed until Stage 5 phase 2.
 - No code from the five audited repositories has been installed or executed.
 
@@ -57,5 +58,5 @@ Live trading through a dedicated bot wallet is documented as an idea with entry 
 
 ## Next stage
 
-1. **Finish 4b live: holder concentration.** Needs an RPC that serves `getTokenLargestAccounts` (Helius or QuickNode free tier via `SCHEME1_SOLANA_RPC_URL`). Then rerun the BONK check and fix any parsing differences in the holder and owner responses.
+1. **Decide the holder rule.** BONK fails because its biggest holders are normal wallets. Those are probably exchange wallets (not yet checked), and the curve test can't tell an exchange wallet from a whale. Options: (a) keep the strict rule, (b) add a reviewed list of known exchange wallets that are excluded like program-controlled ones, (c) raise the top-10 limit.
 2. **Stage 5: research agents.** Deterministic market, technical, data-quality, bull, bear and risk agents that read a `FeatureSnapshot`, a `ValidationReport` and a `SafetyReport`, and cite feature keys as evidence.
