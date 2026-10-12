@@ -24,6 +24,8 @@ from scheme1.data.providers._rows import parse_rows
 from scheme1.data.providers.base import FetchResult, ProviderError
 
 BASE_URL = "https://api.geckoterminal.com/api/v2"
+# CoinGecko API Terms 4.4: show this wherever the data is used.
+ATTRIBUTION = "Powered by CoinGecko"
 API_VERSION_HEADER = "application/json;version=20230203"
 MAX_LIMIT = 1000
 
@@ -62,7 +64,7 @@ class GeckoTerminalProvider:
         *,
         transport: Transport | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        min_interval_s: float = 6.5,  # stays under ~10 calls/minute
+        min_interval_s: float = 7.5,  # 8 calls/minute, margin under the ~10/minute limit (API Terms 4.2)
         retry: RetryPolicy = RetryPolicy(),
     ):
         self._client = client or PacedClient(

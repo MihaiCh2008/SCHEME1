@@ -104,3 +104,53 @@ def test_stored_freshness():
     ingest(FixtureProvider(FIXTURE, now=lambda: AFTER_LAST), store, SYMBOL, Interval.M5, AFTER_LAST)
     assert stored_freshness(store, SYMBOL, Interval.M5, AFTER_LAST) is DataStatus.OK
     assert stored_freshness(store, SYMBOL, Interval.M5, AFTER_LAST + timedelta(hours=1)) is DataStatus.STALE
+
+
+def _gt_body(t0):
+    rows = [[t0 + 300 * i, "1.0", "1.1", "0.9", "1.0", "5"] for i in range(3)]
+    return json.dumps({"data": {"attributes": {"ohlcv_list": rows}}}).encode()
+
+
+def _gt_provider(now, *bodies):
+    client = PacedClient(ScriptedTransport(*[HttpResponse(200, b) for b in bodies]), min_interval_s=0,
+                         clock=FakeClock())
+    return GeckoTerminalProvider(client, now=lambda: now)
+
+
+POOL = "solana:5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9"
+
+
+def test_provider_data_older_than_24h_is_purged_but_fixture_data_is_kept():
+    store = CandleStore()
+    t0 = int(T0.timestamp())
+    first = T0 + 3 * STEP
+    ingest(_gt_provider(first, _gt_body(t0)), store, POOL, Interval.M5, first)
+    ingest(FixtureProvider(FIXTURE, now=lambda: first), store, SYMBOL, Interval.M5, first)
+    assert len(store.clean_candles(POOL, Interval.M5)) == 3
+
+    later = first + timedelta(hours=24, seconds=1)
+    failing = GeckoTerminalProvider(PacedClient(ScriptedTransport(HttpResponse(400, b"bad")), min_interval_s=0,
+                                                clock=FakeClock()), now=lambda: later)
+    result = ingest(failing, store, POOL, Interval.M5, later)  # fetch fails; purge still runs
+    assert result.report.status is DataStatus.UNAVAILABLE
+    assert store.clean_candles(POOL, Interval.M5) == ()
+    assert len(store.clean_candles(SYMBOL, Interval.M5)) > 0  # fixture data is ours
+
+
+def test_refetched_candles_survive_the_purge():
+    store = CandleStore()
+    t0 = int(T0.timestamp())
+    first = T0 + 3 * STEP
+    ingest(_gt_provider(first, _gt_body(t0)), store, POOL, Interval.M5, first)
+    second = first + timedelta(hours=20)
+    ingest(_gt_provider(second, _gt_body(t0)), store, POOL, Interval.M5, second)  # same candles, refreshed
+    assert store.purge_expired(first + timedelta(hours=25), timedelta(hours=24)) == 1
+    assert len(store.clean_candles(POOL, Interval.M5)) == 3
+
+
+def test_purge_provider_deletes_everything_from_it():
+    store = CandleStore()
+    first = T0 + 3 * STEP
+    ingest(_gt_provider(first, _gt_body(int(T0.timestamp()))), store, POOL, Interval.M5, first)
+    assert store.purge_provider("geckoterminal") == 1
+    assert store.clean_candles(POOL, Interval.M5) == ()

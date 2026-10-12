@@ -92,7 +92,9 @@ Desk states: `NORMAL` → `DEGRADED` (automatic on data problems; clears when da
 - SQLite in WAL mode (stdlib, no server). Each pipeline step for one candle commits in **one transaction**.
 - `audit_log` is append-only. Each row stores `sha256(prev_hash + payload)`, so editing any past row breaks the chain, and startup verifies it.
 - On restart, positions and cash are **rebuilt from the fill history** and compared to the last stored snapshot. A mismatch flips the desk to `EMERGENCY_STOP` instead of trading on bad books.
-- Backup: `sqlite3 desk.db ".backup backup.db"` while running (safe with WAL).
+- Backup: `sqlite3 desk.db ".backup backup.db"` while running (safe with WAL). Backups are subject to the same 24-hour provider-data rule (D11); don't keep old backups that contain GeckoTerminal data.
+- Provider data retention: at most 24 hours since last fetch (D11). The backtest fetches the history it needs at run time.
+- The UI shows "Powered by CoinGecko" wherever GeckoTerminal data appears, and binds to localhost only.
 
 ## 8. Stack
 

@@ -5,13 +5,17 @@
 - ``clean_candles`` has one row per (symbol, interval, open_time). A later batch that reports different
   values for a stored candle replaces it, and the replacement is counted as a revision.
 - One ingest writes everything in a single transaction.
+- Retention: the CoinGecko API Terms (section 6.1, version of 5 Sept 2025) allow cached data only if it is
+  refreshed at least every 24 hours, and require deletion of all stored data if API access ends.
+  ``purge_expired`` and ``purge_provider`` implement that. Fixture data is ours and is never purged.
+  Validation reports (our own pipeline metadata) are kept; provider error snippets in them are short.
 """
 
 from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -107,6 +111,33 @@ class CandleStore:
                     (*key, *values, report.batch_id),
                 )
         return revised
+
+    def purge_expired(self, now: datetime, max_age: timedelta, exempt: tuple[str, ...] = ("fixture",)) -> int:
+        """Delete provider data not (re)retrieved within ``max_age``. Returns the number of raw batches removed.
+
+        A clean candle survives as long as its newest source batch does: re-fetching a candle moves it to the
+        new batch, which is how a cache gets "refreshed".
+        """
+        cutoff = now - max_age
+        rows = self._db.execute("SELECT batch_id, provider, retrieved_at FROM raw_batches").fetchall()
+        expired = [b for b, provider, t in rows if provider not in exempt and datetime.fromisoformat(t) < cutoff]
+        self._delete_batches(expired)
+        return len(expired)
+
+    def purge_provider(self, provider: str) -> int:
+        """Delete everything stored from one provider (for example when its API access ends)."""
+        rows = self._db.execute("SELECT batch_id FROM raw_batches WHERE provider=?", (provider,)).fetchall()
+        expired = [r[0] for r in rows]
+        self._delete_batches(expired)
+        return len(expired)
+
+    def _delete_batches(self, batch_ids: list[str]) -> None:
+        with self._db:
+            for batch_id in batch_ids:
+                self._db.execute("DELETE FROM clean_candles WHERE batch_id=?", (batch_id,))
+                self._db.execute("DELETE FROM raw_batches WHERE batch_id=?", (batch_id,))
+        if batch_ids:
+            self._db.execute("VACUUM")  # also drop the deleted pages from the file
 
     def clean_candles(self, symbol: str, interval: Interval, *, start: datetime | None = None,
                       end: datetime | None = None, limit: int | None = None) -> tuple[Candle, ...]:

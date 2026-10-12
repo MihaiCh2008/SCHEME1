@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from scheme1.contracts import DataStatus, Interval, ValidationReport, new_id
 from scheme1.data.providers.base import MarketDataProvider, ProviderError
 from scheme1.data.store import CandleStore
 from scheme1.data.validate import ValidatorConfig, freshness_status, validate_batch
+
+
+# CoinGecko API Terms 6.1.1 (5 Sept 2025): refresh cached data at least every 24 hours.
+DEFAULT_RETENTION = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -29,8 +33,13 @@ def ingest(
     limit: int = 300,
     end: datetime | None = None,
     config: ValidatorConfig = ValidatorConfig(),
+    retention: timedelta = DEFAULT_RETENTION,
 ) -> IngestResult:
-    """Never raises for provider problems: a failed fetch is stored and returned as UNAVAILABLE."""
+    """Never raises for provider problems: a failed fetch is stored and returned as UNAVAILABLE.
+
+    Provider data older than ``retention`` is purged first, so the retention rule holds on every run.
+    """
+    store.purge_expired(now, retention)
     try:
         fetched = provider.fetch_candles(symbol, interval, limit=limit, end=end)
     except ProviderError as err:

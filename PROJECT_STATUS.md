@@ -25,15 +25,16 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-10-12, Python 3.13.16: **55 passed, 0 failed, 0 skipped** (14 contract tests, 41 data-pipeline tests). No test uses the network.
+Result on 2026-10-12, Python 3.13.16: **58 passed, 0 failed, 0 skipped** (14 contract tests, 44 data-pipeline tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
 ## Missing access and limitations
 
-- **GeckoTerminal and DexScreener APIs work from the cloud session** (verified 2026-10-12). Their website terms were read on 2026-10-12 (text supplied by the user): personal, non-commercial use; no redistribution of GeckoTerminal content; no excessive load. See DECISIONS.md D11.
-- **Still unread: the CoinGecko API Terms of Service** (coingecko.com/en/api_terms), which govern GeckoTerminal API use and data storage. Please paste them the same way. The DexScreener API terms page is also unread.
-- This repository is public. No provider data is committed (the one real response was replaced with synthetic data), but it remains in git history at commit 7be4292.
+- **GeckoTerminal and DexScreener APIs work from the cloud session** (verified 2026-10-12).
+- **Terms read on 2026-10-12** (text supplied by the user): GeckoTerminal Website Terms, CoinGecko API Terms of Service and DEX Screener Terms. Result: personal local use, 24-hour retention of GeckoTerminal data (now enforced in code), "Powered by CoinGecko" attribution, no redistribution. See DECISIONS.md D11 and docs/STAGE3_DATA.md section 1a. The DexScreener API terms page (if any) is unread.
+- **Recommended:** make this repository private. It's public; it no longer contains provider data (the one real response remains in git history at commit 7be4292), but the docs describe CoinGecko's API, and API Terms 4.1.7.6 restrict public statements about it.
+- **Recommended:** keep `desk.db` on a disk with full-disk encryption (API Terms 6.1.2 asks for strong encryption of stored data).
 - GeckoTerminal's free limit is about 10 calls/minute (a 429 was observed). That caps how many pools can be watched.
 - **Centralized-exchange APIs are blocked in the cloud session.** `api.binance.com`, `data-api.binance.vision`, `data.binance.vision`, `api.exchange.coinbase.com`, `api.kraken.com`, `api.bybit.com` and `www.okx.com` all got 403 from the environment proxy. PyPI and GitHub work. Real-data steps must run on your PC, or the environment must allow the chosen host.
 - No LLM provider is configured. None is needed until Stage 5 phase 2.
@@ -49,4 +50,4 @@ Target is now **Solana memecoins, paper trading only** (see DECISIONS.md D9). St
 
 ## Next stage
 
-Stage 4: deterministic quantitative logic. Build the feature engine on `clean_candles` (returns, volatility, volume and liquidity measures suited to memecoins, plus RSI/EMA-style indicators), with the `FeatureSnapshot.as_of` = last closed candle rule and warm-up handling. Test it for no look-ahead, and add a token-safety data step: pool liquidity and age from GeckoTerminal, cross-checked against DexScreener because the two disagree. A token stays blocked until both checks are verified.
+Stage 4: deterministic quantitative logic. Because of the 24-hour retention rule, features are computed from recently fetched candles, and stored feature snapshots follow the derived-records rule in docs/STAGE3_DATA.md section 1a, item 8. Build the feature engine on `clean_candles` (returns, volatility, volume and liquidity measures suited to memecoins, plus RSI/EMA-style indicators), with the `FeatureSnapshot.as_of` = last closed candle rule and warm-up handling. Test it for no look-ahead, and add a token-safety data step: pool liquidity and age from GeckoTerminal, cross-checked against DexScreener because the two disagree. A token stays blocked until both checks are verified.
