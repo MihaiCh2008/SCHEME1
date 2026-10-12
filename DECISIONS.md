@@ -32,3 +32,13 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 
 ## D8. Old JavaScript prototype kept in `prototype/`
 - It runs on a synthetic market and is not part of the new system. It's kept for visual reference only.
+
+## D9. Scope change: Solana memecoins, paper trading only (2026-10-12)
+- **Choice:** target Solana memecoins. Data comes from public DEX data APIs (GeckoTerminal and/or DexScreener; to be verified in Stage 3). Execution stays simulated. The user trades by hand on Axiom or FOMO if they choose.
+- **Why not Axiom/FOMO as integrations:** neither publishes an official developer API (searched 2026-10-12). Community Axiom libraries authenticate with the user's web-session cookie, which is fragile, possibly against Axiom's terms, and a custody risk. Real-money execution is also out of scope by requirement.
+- **Design consequences:**
+  - Token-safety checks become part of data validation and risk: minimum pool liquidity, token age, top-holder concentration, mint/freeze authority. Each needs a verified data source before it can be enforced. Until then, the token counts as unverified and is blocked.
+  - The paper broker must model AMM price impact from pool liquidity, not just candle volume.
+  - Backtests must address survivorship bias (dead tokens disappear from listings).
+  - Long-only. Base and BNB chains are out of scope until Solana works end to end.
+- Supersedes the exchange choice in D2. ccxt stays available for the major exchanges but is not the first provider.

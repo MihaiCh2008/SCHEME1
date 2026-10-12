@@ -37,6 +37,10 @@ Result on 2026-10-12, Python 3.13.16: **14 passed, 0 failed, 0 skipped** (`tests
 
 See section 5 of [docs/STAGE1_AUDIT.md](docs/STAGE1_AUDIT.md).
 
+## Scope change (2026-10-12)
+
+Target is now **Solana memecoins, paper trading only** (see DECISIONS.md D9). The user asked for network access to `api.geckoterminal.com` and `api.dexscreener.com` in the cloud environment. Stage 3 starts by verifying those endpoints from a new session.
+
 ## Next stage
 
-Stage 3: market-data pipeline. The provider interface, a fixture provider (offline, labelled test data), a ccxt provider (tests use mocked responses for timeouts and rate limits), the validator, raw/clean storage, and freshness checks.
+Stage 3: market-data pipeline for Solana DEX pools. First verify the GeckoTerminal and DexScreener endpoints (rate limits, candle intervals, liquidity fields, terms of use) from the cloud session. Then build the provider interface, a fixture provider (offline, labelled test data), the chosen DEX-data provider (tests use mocked responses for timeouts and rate limits), the validator, raw/clean storage and freshness checks.
