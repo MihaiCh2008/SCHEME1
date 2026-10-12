@@ -8,7 +8,7 @@ _Last updated: 2026-10-12 (Stage 4b live check)_
 | 2 | Architecture and interfaces | **Done (proposal)**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); contracts in `src/scheme1/contracts.py` |
 | 3 | Data pipeline | **Done**: [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md); code in `src/scheme1/data/` |
 | 4 | Deterministic quantitative logic | **Done**: [docs/STAGE4_FEATURES.md](docs/STAGE4_FEATURES.md); features in `src/scheme1/features/`, token safety in `src/scheme1/safety/` |
-| 4b | On-chain token checks | **Verified live, all 4 checks run** (Helius free plan). BONK fails holder concentration; see below |
+| 4b | On-chain token checks | **Verified live, all 4 checks run** (Helius free plan). BONK fails holder concentration and stays blocked by choice (D13) |
 | 5 | Research agents | Not started |
 | 6 | Decision and risk engines | Not started |
 | 7 | Paper execution and accounting | Not started |
@@ -58,5 +58,5 @@ Live trading through a dedicated bot wallet is documented as an idea with entry 
 
 ## Next stage
 
-1. **Decide the holder rule.** BONK fails because its biggest holders are normal wallets. Those are probably exchange wallets (not yet checked), and the curve test can't tell an exchange wallet from a whale. Options: (a) keep the strict rule, (b) add a reviewed list of known exchange wallets that are excluded like program-controlled ones, (c) raise the top-10 limit.
+1. **Holder rule decided** (DECISIONS.md D13): keep the strict limits. BONK stays blocked. No code change.
 2. **Stage 5: research agents.** Deterministic market, technical, data-quality, bull, bear and risk agents that read a `FeatureSnapshot`, a `ValidationReport` and a `SafetyReport`, and cite feature keys as evidence.

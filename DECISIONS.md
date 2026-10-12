@@ -66,3 +66,10 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** the providers already disagree on pool age by months for BONK/SOL, and a single bad figure must not unlock trading. Mint and freeze authority, dangerous Token-2022 extensions and whale wallets are the common ways memecoin holders lose everything. Blocking by default follows D9.
 - **Alternatives:** third-party rug-check services. Rejected for now: another dependency with its own terms, and their scores can't be audited line by line (the same reason as D1).
 - **Consequence:** no token is tradable until the RPC checks run. The RPC is blocked from the cloud session today.
+
+## D13. Holder concentration: keep the strict rule; exchange wallets are not excluded (2026-10-12)
+- **Choice:** keep D12's limits (largest wallet ≤ 10%, top 10 wallets ≤ 30%). Only program-derived owners are excluded. Normal wallets count, including exchange wallets.
+- **Why:** first live run with Helius: BONK fails (largest wallet 8.83%, top 10 wallets 38.41%). Its largest holders are probably exchange wallets (not confirmed), but the curve test can't tell an exchange from a whale. Missing a good token is cheaper than buying a dumped one, and the desk is paper-only (D9).
+- **Alternatives:** (b) a reviewed list of known exchange wallets, excluded like program-controlled owners; (c) a higher top-10 limit. Both deferred; can be revisited once paper results show how many tokens are blocked.
+- **Consequence:** large tokens with exchange-held supply, such as BONK, are blocked. Fewer pools are tradable.
+- **Also:** the public RPC refuses `getTokenLargestAccounts` (HTTP 429), so `SCHEME1_SOLANA_RPC_URL` must point to a provider such as the Helius free plan.
