@@ -42,3 +42,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
   - Backtests must address survivorship bias (dead tokens disappear from listings).
   - Long-only. Base and BNB chains are out of scope until Solana works end to end.
 - Supersedes the exchange choice in D2. ccxt stays available for the major exchanges but is not the first provider.
+
+## D10. GeckoTerminal as the candle provider for Solana pools (2026-10-12)
+- **Choice:** GeckoTerminal public API (keyless) behind `MarketDataProvider`. Paced to stay under its limit of about 10 calls/minute, with our own 60 s back-off after a 429 because its `retry-after` header is `0`.
+- **Alternatives:** DexScreener has no candle endpoint (verified: 404), so it can't feed features or backtests. CoinGecko's paid on-chain API has the same data with higher limits; it's an option if the free limit becomes the bottleneck.
+- **Consequences:** symbols are `solana:<pool address>`; candle volume is in USD; the newest candle is often still open and is dropped by the validator. DexScreener stays a candidate second source for liquidity and pool age, since the two providers already disagree on pool age for BONK/SOL.
+- Evidence: [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md).

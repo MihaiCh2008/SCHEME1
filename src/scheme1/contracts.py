@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -112,23 +112,6 @@ class Provenance(Contract):
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
-class CandleBatch(Contract):
-    """Raw candles exactly as received, plus where they came from."""
-
-    batch_id: str = Field(default_factory=lambda: new_id("batch"))
-    symbol: str
-    interval: Interval
-    provenance: Provenance
-    candles: tuple[Candle, ...]
-
-
-class DataStatus(StrEnum):
-    OK = "ok"
-    DEGRADED = "degraded"  # usable for research, blocks new orders
-    STALE = "stale"  # newest closed candle older than the freshness limit
-    UNAVAILABLE = "unavailable"  # provider failed or returned nothing usable
-
-
 class IssueCode(StrEnum):
     DUPLICATE = "duplicate"
     GAP = "gap"
@@ -139,12 +122,34 @@ class IssueCode(StrEnum):
     NEGATIVE_VOLUME = "negative_volume"
     OUTLIER = "outlier"
     WRONG_SYMBOL = "wrong_symbol"
+    INCONSISTENT_OHLC = "inconsistent_ohlc"  # e.g. high below close
+    MALFORMED = "malformed"  # row could not be parsed at all
 
 
 class DataIssue(Contract):
     code: IssueCode
     open_time: UTCDateTime | None = None
     detail: str
+
+
+class CandleBatch(Contract):
+    """Raw candles exactly as received, plus where they came from."""
+
+    batch_id: str = Field(default_factory=lambda: new_id("batch"))
+    symbol: str
+    interval: Interval
+    provenance: Provenance
+    candles: tuple[Candle, ...]
+    # Rows the provider sent that could not become a ``Candle`` (bad prices, broken OHLC).
+    # They are kept here so the validator can report them instead of losing them silently.
+    parse_issues: tuple[DataIssue, ...] = ()
+
+
+class DataStatus(StrEnum):
+    OK = "ok"
+    DEGRADED = "degraded"  # usable for research, blocks new orders
+    STALE = "stale"  # newest closed candle older than the freshness limit
+    UNAVAILABLE = "unavailable"  # provider failed or returned nothing usable
 
 
 class ValidationReport(Contract):

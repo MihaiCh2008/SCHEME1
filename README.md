@@ -11,8 +11,9 @@ A self-hosted research and **paper-trading** desk for crypto. Market data goes t
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) | Which stages are done, real test results, blockers |
 | [docs/STAGE1_AUDIT.md](docs/STAGE1_AUDIT.md) | Audit of TradingAgents, OpenBB, Freqtrade, NautilusTrader, QuantDinger |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow, module contracts, fill and risk rules |
+| [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md) | Data-provider verification (GeckoTerminal, DexScreener) and the data pipeline |
 | [DECISIONS.md](DECISIONS.md) | Why each architectural choice was made |
-| `src/scheme1/` | Python package (contracts so far) |
+| `src/scheme1/` | Python package: contracts and the data pipeline (`scheme1.data`) |
 | `tests/` | pytest suite |
 | `prototype/` | Earlier JS visual prototype on a **synthetic** market (not part of this system) |
 
@@ -25,4 +26,10 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 python -m pytest
+```
+
+Fetch real candles for one Solana pool into a local SQLite file (needs internet access to `api.geckoterminal.com`):
+
+```sh
+python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9 --interval 5m --db desk.db
 ```

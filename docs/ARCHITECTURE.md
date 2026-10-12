@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart LR
-  P["Provider adapter<br/>(ccxt / fixture)"] -->|CandleBatch + Provenance| RAW[("raw_candles")]
+  P["Provider adapter<br/>(GeckoTerminal / fixture)"] -->|CandleBatch + Provenance| RAW[("raw_candles")]
   RAW --> V["Validator"]
   V -->|ValidationReport + clean candles| CLEAN[("clean_candles")]
   CLEAN --> F["Feature engine"]
@@ -96,4 +96,4 @@ Desk states: `NORMAL` → `DEGRADED` (automatic on data problems; clears when da
 
 ## 8. Stack
 
-Python ≥3.11. Libraries: pydantic (contracts), ccxt (public data only, MIT), FastAPI + uvicorn (API), pytest. Frontend: static HTML/CSS/JS served by the API, with no build step. No Postgres, Redis or Docker needed.
+Python ≥3.11. Libraries: pydantic (contracts), Python stdlib HTTP for the GeckoTerminal public API (see D10; ccxt dropped for now), FastAPI + uvicorn (API), pytest. Frontend: static HTML/CSS/JS served by the API, with no build step. No Postgres, Redis or Docker needed.
