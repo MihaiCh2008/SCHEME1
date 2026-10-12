@@ -196,7 +196,10 @@ class TokenOnchainInfo(Contract):
     mint_authority: str | None
     freeze_authority: str | None
     extensions: tuple[str, ...] = ()  # Token-2022 extension names
-    holders: tuple[HolderBalance, ...]  # from the largest accounts the RPC returns (up to 20), largest first
+    # From the largest accounts the RPC returns (up to 20), largest first. None when the RPC refused the
+    # holder lookup (the public endpoint rate-limits getTokenLargestAccounts); holders_error says why.
+    holders: tuple[HolderBalance, ...] | None
+    holders_error: str = ""
     accounts_seen: int = Field(ge=0)
     smallest_account_seen: int = Field(ge=0)  # upper bound for any holder not in the list
 

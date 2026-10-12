@@ -103,29 +103,40 @@ class SolanaRpc:
                 raise ProviderError(self.name, "not_a_mint", f"{mint} is not a token mint")
             info = parsed["info"]
 
-            largest = self._call("getTokenLargestAccounts", [mint])["value"]
-            addresses = [a["address"] for a in largest]
-            amounts = {a["address"]: int(a["amount"]) for a in largest}
-            owners: dict[str, int] = {}
-            if addresses:
-                accounts = self._call("getMultipleAccounts", [addresses, {"encoding": "jsonParsed"}])["value"]
-                for address, acc in zip(addresses, accounts):
-                    acc_info = acc["data"]["parsed"]["info"] if acc else None
-                    if not acc_info or acc_info.get("mint") != mint:
-                        raise ProviderError(self.name, "bad_payload", f"token account {address} missing or for another mint")
-                    owners[acc_info["owner"]] = owners.get(acc_info["owner"], 0) + amounts[address]
+            holders: tuple[HolderBalance, ...] | None = None
+            holders_error = ""
+            addresses: list[str] = []
+            amounts: dict[str, int] = {}
+            try:
+                largest = self._call("getTokenLargestAccounts", [mint])["value"]
+            except ProviderError as err:
+                if err.reason == "bad_payload":
+                    raise
+                # The mint checks are still valid; only holder_concentration stays unverified.
+                holders_error = f"holder lookup failed: {err.reason}"
+            else:
+                addresses = [a["address"] for a in largest]
+                amounts = {a["address"]: int(a["amount"]) for a in largest}
+                owners: dict[str, int] = {}
+                if addresses:
+                    accounts = self._call("getMultipleAccounts", [addresses, {"encoding": "jsonParsed"}])["value"]
+                    for address, acc in zip(addresses, accounts):
+                        acc_info = acc["data"]["parsed"]["info"] if acc else None
+                        if not acc_info or acc_info.get("mint") != mint:
+                            raise ProviderError(self.name, "bad_payload", f"token account {address} missing or for another mint")
+                        owners[acc_info["owner"]] = owners.get(acc_info["owner"], 0) + amounts[address]
+                holders = tuple(sorted(
+                    (HolderBalance(owner=o, amount=a, program_controlled=not is_on_curve(o)) for o, a in owners.items()),
+                    key=lambda h: h.amount, reverse=True,
+                ))
         except (KeyError, TypeError, ValueError, AttributeError) as err:
             raise ProviderError(self.name, "bad_payload", f"{type(err).__name__}: {err}") from err
 
-        holders = sorted(
-            (HolderBalance(owner=o, amount=a, program_controlled=not is_on_curve(o)) for o, a in owners.items()),
-            key=lambda h: h.amount, reverse=True,
-        )
         return TokenOnchainInfo(
             mint=mint, retrieved_at=self._now(), token_program=program,
             supply=int(info["supply"]), decimals=int(info["decimals"]),
             mint_authority=info.get("mintAuthority"), freeze_authority=info.get("freezeAuthority"),
             extensions=tuple(e.get("extension", "?") for e in info.get("extensions", []) or []),
-            holders=tuple(holders), accounts_seen=len(addresses),
+            holders=holders, holders_error=holders_error, accounts_seen=len(addresses),
             smallest_account_seen=min(amounts.values(), default=0),
         )

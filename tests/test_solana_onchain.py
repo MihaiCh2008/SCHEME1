@@ -129,6 +129,33 @@ def test_rpc_problems_raise_without_leaking_the_url(responses, reason):
     assert "SECRET" not in str(err.value)
 
 
+# Real getAccountInfo response for the BONK mint, mainnet-beta, slot 456157687 (2026-10-12).
+BONK_MINT_RESPONSE = (
+    b'{"jsonrpc":"2.0","result":{"context":{"apiVersion":"4.3.0","slot":456157687},"value":{"data":{"parsed":'
+    b'{"info":{"decimals":5,"freezeAuthority":null,"isInitialized":true,"mintAuthority":null,'
+    b'"supply":"8799435945064921657"},"type":"mint"},"program":"spl-token","space":82},"executable":false,'
+    b'"lamports":1092251303844,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",'
+    b'"rentEpoch":18446744073709551615,"space":82}},"id":1}'
+)
+# What the public endpoint returned for every getTokenLargestAccounts call on 2026-10-12 (HTTP 429).
+PUBLIC_RPC_429 = b'{"jsonrpc":"2.0","error":{"code": 429,"message":"Too many requests for a specific RPC call"}, "id": 2 }'
+
+
+def test_real_bonk_mint_with_holder_lookup_refused():
+    s, _ = rpc(HttpResponse(200, BONK_MINT_RESPONSE), HttpResponse(429, PUBLIC_RPC_429), HttpResponse(429, PUBLIC_RPC_429))
+    info = s.token_info(MINT)
+    assert info.token_program == "spl-token" and info.decimals == 5 and info.supply == 8799435945064921657
+    assert info.mint_authority is None and info.freeze_authority is None and info.extensions == ()
+    assert info.holders is None and info.holders_error == "holder lookup failed: rate_limited"
+
+    report = evaluate(POOL_SYM, pool_snaps(), NOW, onchain=info)
+    status = {c.name: c.status for c in report.checks}
+    assert status["mint_authority_revoked"] == status["freeze_authority_revoked"] == SafetyStatus.PASS
+    assert status["token_extensions_safe"] == SafetyStatus.PASS
+    assert status["holder_concentration"] == SafetyStatus.UNVERIFIED
+    assert not report.tradable
+
+
 def test_rpc_url_from_environment(monkeypatch):
     monkeypatch.setenv("SCHEME1_SOLANA_RPC_URL", "https://custom.example/rpc")
     transport = ScriptedTransport(mint_account(), largest([]))

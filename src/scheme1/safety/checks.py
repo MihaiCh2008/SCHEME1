@@ -158,6 +158,9 @@ def _pct(amount: int, supply: int) -> Decimal:
 
 
 def _concentration(info: TokenOnchainInfo, config: SafetyConfig) -> SafetyCheck:
+    if info.holders is None:
+        return SafetyCheck(name="holder_concentration", status=SafetyStatus.UNVERIFIED, observed="no data",
+                           limit="required", detail=info.holders_error or "holder list unavailable")
     wallets = [h for h in info.holders if not h.program_controlled]
     programs = [h for h in info.holders if h.program_controlled]
     top10 = sum(h.amount for h in wallets[:10])
