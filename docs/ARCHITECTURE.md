@@ -33,7 +33,8 @@ The **backtest** runs the same Validator → Features → Agents → Decision �
 | `data.providers` | symbol, interval, time range | `CandleBatch` (raw, with `Provenance`: provider, kind, retrieved_at, request, sha256) | timeout, rate limit (bounded retries with backoff), empty, `UNAVAILABLE` |
 | `data.validate` | `CandleBatch` | `ValidationReport` + clean candles | `DEGRADED` (gaps, outliers), `STALE` (too old), `UNAVAILABLE` |
 | `features` | clean candles up to time *t* | `FeatureSnapshot` (`as_of` = close of last candle used) | values `None` during warm-up or on zero denominators; `warmup_complete=false` |
-| `agents` | `FeatureSnapshot` + `ValidationReport` | `AgentOutput` (stance, score, cited `Evidence`) | `UNAVAILABLE` (provider down), `INVALID` (schema or citation check failed) |
+| `safety` | pool address | `SafetyReport` (liquidity, pool age, base token from two providers; on-chain checks) | any check `unverified` or `fail` → not tradable |
+| `agents` | `FeatureSnapshot` + `ValidationReport` + `SafetyReport` | `AgentOutput` (stance, score, cited `Evidence`) | `UNAVAILABLE` (provider down), `INVALID` (schema or citation check failed) |
 | `decision` | snapshot + agent outputs | `Decision` (research only, authorizes nothing) | non-OK data forces `HOLD` (enforced in the contract) |
 | `authorize` | `Decision` + portfolio | `OrderIntent` or nothing | no intent for HOLD or when sizing rounds to zero |
 | `risk` | `OrderIntent` + portfolio + desk state + data status | `RiskVerdict` with every check listed | always produces a verdict; any failed check rejects |

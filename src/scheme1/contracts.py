@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -160,6 +160,52 @@ class ValidationReport(Contract):
     candles_out: int = Field(ge=0)
     newest_closed_open_time: UTCDateTime | None = None
     checked_at: UTCDateTime
+
+
+# ---------------------------------------------------------------- token safety
+
+
+class PoolSnapshot(Contract):
+    """What one provider reports about a DEX pool at one moment. ``None`` = the provider did not say."""
+
+    symbol: str  # "solana:<pool address>"
+    provider: str
+    retrieved_at: UTCDateTime
+    base_token_mint: str | None = None
+    liquidity_usd: Annotated[Decimal, Field(ge=0)] | None = None
+    pool_created_at: UTCDateTime | None = None
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class SafetyStatus(StrEnum):
+    PASS = "pass"
+    FAIL = "fail"  # verified, and outside the limit
+    UNVERIFIED = "unverified"  # no trustworthy data; blocks exactly like FAIL
+
+
+class SafetyCheck(Contract):
+    name: str
+    status: SafetyStatus
+    observed: str
+    limit: str
+    detail: str = ""
+
+
+class SafetyReport(Contract):
+    """Token-safety verdict for one pool. A token is tradable only if every check passed."""
+
+    symbol: str
+    checked_at: UTCDateTime
+    checks: tuple[SafetyCheck, ...]
+    safety_config_version: str
+    tradable: bool
+
+    @model_validator(mode="after")
+    def _tradable_means_all_passed(self) -> SafetyReport:
+        all_passed = bool(self.checks) and all(c.status is SafetyStatus.PASS for c in self.checks)
+        if self.tradable != all_passed:
+            raise ValueError("tradable must be true exactly when every check passed")
+        return self
 
 
 # ------------------------------------------------------------------- features

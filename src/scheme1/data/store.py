@@ -142,7 +142,12 @@ class CandleStore:
     def clean_candles(self, symbol: str, interval: Interval, *, start: datetime | None = None,
                       end: datetime | None = None, limit: int | None = None) -> tuple[Candle, ...]:
         """Clean candles with ``start <= open_time < end``, oldest first. ``limit`` keeps the newest ones."""
-        sql = "SELECT open_time, open, high, low, close, volume FROM clean_candles WHERE symbol=? AND interval=?"
+        return tuple(c for c, _ in self.clean_candles_with_batches(symbol, interval, start=start, end=end, limit=limit))
+
+    def clean_candles_with_batches(self, symbol: str, interval: Interval, *, start: datetime | None = None,
+                                   end: datetime | None = None, limit: int | None = None) -> tuple[tuple[Candle, str], ...]:
+        """Like ``clean_candles``, paired with the id of the batch each candle was last stored from."""
+        sql = "SELECT open_time, open, high, low, close, volume, batch_id FROM clean_candles WHERE symbol=? AND interval=?"
         args: list[object] = [symbol, interval.value]
         if start is not None:
             sql += " AND open_time >= ?"
@@ -156,9 +161,9 @@ class CandleStore:
             args.append(limit)
         rows = self._db.execute(sql, args).fetchall()
         return tuple(
-            Candle(symbol=symbol, interval=interval, open_time=datetime.fromisoformat(t), open=Decimal(o),
-                   high=Decimal(h), low=Decimal(low), close=Decimal(c), volume=Decimal(v))
-            for t, o, h, low, c, v in reversed(rows)
+            (Candle(symbol=symbol, interval=interval, open_time=datetime.fromisoformat(t), open=Decimal(o),
+                    high=Decimal(h), low=Decimal(low), close=Decimal(c), volume=Decimal(v)), batch_id)
+            for t, o, h, low, c, v, batch_id in reversed(rows)
         )
 
     def latest_clean_before(self, symbol: str, interval: Interval, before: datetime) -> Candle | None:

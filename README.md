@@ -12,8 +12,10 @@ A self-hosted research and **paper-trading** desk for crypto. Market data goes t
 | [docs/STAGE1_AUDIT.md](docs/STAGE1_AUDIT.md) | Audit of TradingAgents, OpenBB, Freqtrade, NautilusTrader, QuantDinger |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow, module contracts, fill and risk rules |
 | [docs/STAGE3_DATA.md](docs/STAGE3_DATA.md) | Data-provider verification (GeckoTerminal, DexScreener) and the data pipeline |
+| [docs/STAGE4_FEATURES.md](docs/STAGE4_FEATURES.md) | Feature engine and token-safety checks |
+| [docs/future/LIVE_TRADING.md](docs/future/LIVE_TRADING.md) | How live trading could work later, and the gates before it is allowed |
 | [DECISIONS.md](DECISIONS.md) | Why each architectural choice was made |
-| `src/scheme1/` | Python package: contracts and the data pipeline (`scheme1.data`) |
+| `src/scheme1/` | Python package: contracts, data pipeline (`scheme1.data`), features (`scheme1.features`), token safety (`scheme1.safety`) |
 | `tests/` | pytest suite |
 | `prototype/` | Earlier JS visual prototype on a **synthetic** market (not part of this system) |
 
