@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SCHEME1 Trading Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: a mission-control grid. Market tape left, the orbital signal engine centre, evidence and risk right, code and log underneath. Single dark look by choice. */
+:root {
+  --ink: #0a0510;
+  --panel: #120a18;
+  --panel-2: #1a0f22;
+  --line: #2c1834;
+  --fg: #f6e2ef;
+  --dim: #a08397;
+  --faint: #6a5163;
+  --pink: #ff3ea5;
+  --hot: #ff8fcf;
+  --violet: #a77bff;
+  --buy: #4ef0b0;
+  --sell: #ff5468;
+  --hold: #ffc857;
+  --display: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--ink); color: var(--fg); }
+body { margin: 0; font: 12px/1.45 var(--mono); padding-inline: 16px; padding-block: 12px 20px; font-variant-numeric: tabular-nums; }
+button, select, input { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible, .mrow:focus-visible, .tab:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding-block: 4px 12px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; }
+.mark { width: 28px; height: 28px; border-radius: 6px; background: var(--pink); color: var(--ink); display: grid; place-items: center; font: 700 15px var(--display); box-shadow: 0 0 18px color-mix(in srgb, var(--pink) 60%, transparent); }
+.brand h1 { margin: 0; font: 700 17px var(--display); letter-spacing: 0.04em; }
+.brand small { display: block; color: var(--dim); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.pipe { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 520px; min-width: 0; }
+.chip { flex: 1 1 78px; min-width: 70px; border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 4px 8px; transition: border-color .15s, box-shadow .15s, background .15s; }
+.chip b { display: block; font: 600 10px var(--display); letter-spacing: 0.14em; color: var(--dim); }
+.chip span { font-size: 12px; white-space: nowrap; }
+.chip.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, var(--panel)); box-shadow: 0 0 14px color-mix(in srgb, var(--pink) 35%, transparent); }
+.chip.on b { color: var(--hot); }
+.ctrl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.live { font: 600 11px var(--display); letter-spacing: 0.14em; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--pink); color: var(--hot); }
+.live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--pink); margin-right: 6px; vertical-align: 1px; animation: blink 1.2s infinite; }
+.live.paused { border-color: var(--faint); color: var(--dim); }
+.live.paused::before { background: var(--faint); animation: none; }
+.live.halt { border-color: var(--sell); color: var(--sell); }
+.live.halt::before { background: var(--sell); }
+@keyframes blink { 50% { opacity: 0.25; } }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--pink); }
+select.btn { padding: 4px 6px; }
+
+.grid { display: grid; gap: 10px; margin-top: 10px; grid-template-columns: 250px minmax(0, 1fr) 290px; grid-template-areas: "left stage right" "bottom bottom bottom" "stats stats stats"; }
+.bottom { grid-area: bottom; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; }
+.left { grid-area: left; } .stage { grid-area: stage; } .right { grid-area: right; } .stats { grid-area: stats; }
+.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-width: 0; }
+.ph { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.ph h2 { margin: 0; font: 600 11px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.ph em { font-style: normal; color: var(--faint); font-size: 10px; }
+
+.mrow { display: grid; grid-template-columns: 44px 1fr 56px 46px; align-items: center; gap: 6px; width: 100%; padding: 5px 4px; border: 0; border-radius: 3px; background: none; text-align: left; cursor: pointer; }
+.mrow:hover { background: var(--panel-2); }
+.mrow.sel { background: color-mix(in srgb, var(--pink) 12%, var(--panel)); }
+.mrow .sym { font: 600 12px var(--display); letter-spacing: 0.06em; }
+.mrow .px { text-align: right; }
+.mrow .chg { text-align: right; font-size: 11px; }
+.mrow svg { width: 100%; height: 18px; display: block; }
+.mrow .px small { display: block; font-size: 10px; }
+.up { color: var(--buy); } .dn { color: var(--sell); }
+canvas { display: block; width: 100%; }
+.kv { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 11px; margin-top: 6px; }
+.kv b { color: var(--fg); font-weight: 500; }
+
+.stage { position: relative; min-height: 520px; padding: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--pink) 10%, var(--panel)) 0%, var(--panel) 60%); }
+#orb { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage .ph { position: absolute; top: 10px; left: 12px; right: 12px; z-index: 2; }
+.core { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 2; pointer-events: none; }
+.core .sym { font: 600 11px var(--display); letter-spacing: 0.24em; color: var(--dim); }
+.core .act { font: 700 46px/1 var(--display); letter-spacing: 0.06em; text-shadow: 0 0 24px currentColor; }
+.core .p { font-size: 12px; color: var(--dim); margin-top: 4px; }
+.card { position: absolute; left: 12px; bottom: 12px; z-index: 2; background: color-mix(in srgb, var(--ink) 78%, transparent); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; width: min(300px, calc(100% - 24px)); backdrop-filter: blur(4px); }
+.card .kv:first-child { margin-top: 0; }
+.legend { position: absolute; right: 12px; bottom: 12px; z-index: 2; color: var(--faint); font-size: 10px; text-align: right; max-width: 40%; }
+
+.matrix { display: grid; gap: 2px; grid-template-columns: 74px repeat(16, minmax(0, 1fr)); align-items: center; font-size: 10px; }
+.matrix .lab { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.matrix .c { aspect-ratio: 1; border-radius: 2px; background: var(--panel-2); }
+.agent { display: grid; grid-template-columns: 1fr 70px 40px; gap: 8px; align-items: center; padding-block: 4px; border-top: 1px solid var(--line); }
+.agent:first-of-type { border-top: 0; }
+.agent .nm { min-width: 0; }
+.agent .nm b { font: 600 12px var(--display); letter-spacing: 0.04em; font-weight: 600; }
+.agent .nm small { display: block; color: var(--faint); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { position: relative; height: 8px; background: var(--panel-2); border-radius: 2px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--faint); }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.agent .w { text-align: right; font-size: 11px; }
+.range { width: 100%; accent-color: var(--pink); }
+
+.code pre { margin: 0; overflow-x: auto; font-size: 11.5px; line-height: 1.6; }
+.code .ln { display: block; padding-inline: 6px; border-left: 2px solid transparent; white-space: pre; }
+.code .ln.on { background: color-mix(in srgb, var(--pink) 16%, transparent); border-left-color: var(--pink); }
+.code .ln::before { content: attr(data-n); display: inline-block; width: 22px; color: var(--faint); }
+.tk-k { color: var(--pink); } .tk-s { color: var(--hold); } .tk-c { color: var(--faint); } .tk-n { color: var(--violet); }
+.tabs { display: flex; gap: 4px; }
+.tab { background: none; border: 1px solid transparent; border-radius: 3px; padding: 2px 8px; cursor: pointer; color: var(--dim); font-size: 11px; }
+.tab[aria-selected="true"] { border-color: var(--line); background: var(--panel-2); color: var(--fg); }
+
+.log { height: 268px; overflow-y: auto; font-size: 11px; }
+.log div { display: grid; grid-template-columns: 52px 58px 40px minmax(0, 1fr); gap: 6px; padding-block: 2px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+.log span:nth-child(1) { color: var(--faint); }
+.log span:nth-child(2) { color: var(--violet); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
+.log span:nth-child(3) { color: var(--dim); }
+.log .buy span:last-child { color: var(--buy); } .log .sell span:last-child { color: var(--sell); } .log .muted span:last-child { color: var(--faint); }
+
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.stat .v { font: 600 22px/1.15 var(--display); letter-spacing: 0.02em; }
+.stat .s { color: var(--faint); font-size: 10px; }
+.stat h2 { margin: 0 0 2px; font: 600 10px var(--display); letter-spacing: 0.16em; color: var(--dim); text-transform: uppercase; }
+.foot { margin-top: 12px; color: var(--faint); font-size: 10.5px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+
+@media (max-width: 1180px) {
+  .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "stage stage" "left right" "bottom bottom" "stats stats"; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "left" "right" "bottom" "stats"; }
+  .bottom { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-height: 560px; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; }
+  .stage .card { position: relative; left: auto; bottom: auto; width: 100%; }
+  .core { top: 42%; }
+  .core .act { font-size: 36px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .legend { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .live::before { animation: none; } .chip { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="mark" aria-hidden="true">S</div>
+    <div><h1>SCHEME1 Trading Desk</h1><small>Agents · signal · risk · paper broker</small></div>
+  </div>
+  <nav class="pipe" id="pipe" aria-label="Decision pipeline"></nav>
+  <div class="ctrl">
+    <span class="live" id="live">LIVE</span>
+    <button class="btn" id="pause" type="button">Pause</button>
+    <label class="sr" for="speed" hidden>Speed</label>
+    <select class="btn" id="speed" aria-label="Simulation speed">
+      <option value="1">1× · 300 ms</option>
+      <option value="4">4×</option>
+      <option value="16">16×</option>
+    </select>
+    <button class="btn" id="reset" type="button">New tape</button>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="col left">
+    <div class="panel">
+      <div class="ph"><h2>Market</h2><em>simulated</em></div>
+      <div id="market"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Order book</h2><em id="bookMeta"></em></div>
+      <canvas id="book" height="120"></canvas>
+      <div class="kv"><span>Spread</span><b id="spread">–</b></div>
+      <div class="kv"><span>Top-5 imbalance</span><b id="imb">–</b></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Volatility</h2><em>|return| per tick</em></div>
+      <canvas id="vol" height="70"></canvas>
+      <div class="kv"><span>Current</span><b id="volNow">–</b></div>
+      <div class="kv"><span>Vs normal</span><b id="volRel">–</b></div>
+    </div>
+  </section>
+
+  <section class="panel stage" aria-label="Signal engine">
+    <canvas id="orb" aria-hidden="true"></canvas>
+    <div class="ph"><h2>Orbital signal engine</h2><em id="orbMeta"></em></div>
+    <div class="core"><div class="sym" id="coreSym">BTC / SIM</div><div class="act" id="coreAct">HOLD</div><div class="p" id="coreP">p(up) 0.50</div></div>
+    <div class="card">
+      <div class="kv"><span>Debate</span><b id="cDeb">–</b></div>
+      <div class="kv"><span>Edge vs fees</span><b id="cEdge">–</b></div>
+      <div class="kv"><span>Risk desk</span><b id="cRisk">–</b></div>
+      <div class="kv"><span>Position</span><b id="cPos">–</b></div>
+    </div>
+    <div class="legend">Each streak is market flow. Callouts mark new BUY / SELL calls across the desk.</div>
+  </section>
+
+  <section class="col right">
+    <div class="panel">
+      <div class="ph"><h2>Evidence matrix</h2><em>last 16 ticks</em></div>
+      <div class="matrix" id="matrix"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Agents</h2><em>vote · learned weight</em></div>
+      <div id="agents"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Risk</h2><em id="riskTag"></em></div>
+      <canvas id="gauge" height="92"></canvas>
+      <div class="kv"><span>Drawdown / limit</span><b id="dd">–</b></div>
+      <div class="kv"><span>Gross exposure</span><b id="gross">–</b></div>
+      <div class="kv"><label for="edge">Min edge to trade</label><b id="edgeVal">0.10</b></div>
+      <input class="range" id="edge" type="range" min="0.02" max="0.4" step="0.01" value="0.1">
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Calibration</h2><em>predicted vs actual</em></div>
+      <canvas id="calib" height="110"></canvas>
+    </div>
+  </section>
+
+  <div class="bottom">
+  <section class="panel code">
+    <div class="ph"><h2>Live code</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabDecide" aria-selected="true" type="button">desk.decide()</button>
+        <button class="tab" role="tab" id="tabAgent" aria-selected="false" type="button">your-agent.js</button>
+      </div>
+    </div>
+    <pre id="code"></pre>
+  </section>
+
+  <section class="panel logp">
+    <div class="ph"><h2>Live log</h2><em id="logMeta"></em></div>
+    <div class="log" id="log" aria-live="off"></div>
+  </section>
+  </div>
+
+  <section class="stats">
+    <div class="panel stat"><h2>Ticks</h2><div class="v" id="sTicks">0</div><div class="s" id="sSeed"></div></div>
+    <div class="panel stat"><h2>Hit rate</h2><div class="v" id="sHit">–</div><div class="s">last 300 BUY/SELL calls, graded 8 ticks on</div></div>
+    <div class="panel stat"><h2>Brier score</h2><div class="v" id="sBrier">–</div><div class="s">coin flip = 0.250, lower is better</div></div>
+    <div class="panel stat"><h2>Decision time</h2><div class="v" id="sLat">–</div><div class="s">per symbol, all 7 stages, averaged</div></div>
+    <div class="panel stat"><h2>Paper P&amp;L</h2><div class="v" id="sPnl">–</div><div class="s" id="sFees"></div></div>
+    <div class="panel stat"><h2>Equity</h2><canvas id="eq" height="34"></canvas><div class="s" id="sEq"></div></div>
+  </section>
+</main>
+<div class="foot"><span>Simulated market and paper broker. Nothing here places real orders or is trading advice.</span><span>Plug in an agent from the console: <code>desk.addAgent({...})</code></span></div>
+
+<script src="brain.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const css = getComputedStyle(document.documentElement);
+  const C = {}; for (const k of ['ink','panel','panel-2','line','fg','dim','faint','pink','hot','violet','buy','sell','hold']) C[k] = css.getPropertyValue('--' + k).trim();
+  const ACT = { BUY: C.buy, SELL: C.sell, HOLD: C.hold };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const { fmtPx, fmtQty } = Brain;
+
+  let seed, desk, focus = 'BTC', paused = false, speed = 1, timer = null, lastTick = null;
+  const callouts = [];
+
+  function boot() {
+    seed = Math.floor(Math.random() * 90000) + 10000;
+    desk = new Brain.Desk({ seed, minEdge: +$('edge').value });
+    window.desk = desk;
+    lastTick = desk.tick();
+    renderAll();
+  }
+
+  // ---------- pipeline chips + code ----------
+  const STAGES = [
+    { id: 'watch', label: 'WATCH', lines: [1] },
+    { id: 'analysts', label: 'ANALYSTS', lines: [2] },
+    { id: 'debate', label: 'DEBATE', lines: [3] },
+    { id: 'signal', label: 'SIGNAL', lines: [4, 5, 6, 7, 8] },
+    { id: 'risk', label: 'RISK', lines: [9, 10] },
+    { id: 'execute', label: 'EXECUTE', lines: [11] },
+    { id: 'report', label: 'REPORT', lines: [12] },
+  ];
+  $('pipe').innerHTML = STAGES.map((s) => `<div class="chip" id="ch-${s.id}"><b>${s.label}</b><span id="cv-${s.id}">–</span></div>`).join('');
+
+  const CODE_DECIDE = [
+    'function decide(asset) {',
+    '  const f = features(asset);                    // price, book, vol',
+    '  const votes = agents.map((a) => a.evaluate({ features: f }));',
+    '  const deb = debate(votes);                    // bull case vs bear case',
+    '  const p = model.predict(vector(votes, deb));  // p(up) over 8 ticks',
+    '  const edge = Math.abs(2 * p - 1);',
+    '  let action = "HOLD";',
+    '  if (edge >= minEdge && edge * expectedMove > fees)',
+    '    action = p > 0.5 ? "BUY" : "SELL";',
+    '  const risk = riskDesk.check({ action, conf, f });  // limits, vol, drawdown',
+    '  if (!risk.approved) return veto(risk.reasons);',
+    '  const order = broker.place(limitOrder(action, risk.sizePct));',
+    '  pending.push({ p, x, price });               // graded, then the model learns',
+    '  return { action, p, order };',
+    '}',
+  ];
+  const CODE_AGENT = [
+    '// Plug your own BUY/SELL/HOLD agent into the desk (browser console).',
+    'desk.addAgent({',
+    '  id: "my-agent",',
+    '  name: "My agent",',
+    '  role: "whatever it watches",',
+    '  evaluate({ features, symbol, price, history, book }) {',
+    '    const score = Math.tanh(features.mom - features.stretch); // -1 sell … +1 buy',
+    '    return { score, confidence: 0.6, note: "why it voted" };',
+    '  },',
+    '});',
+    '// The signal model starts it at a small weight and learns how much',
+    '// to trust it from graded outcomes. Watch its weight in Agents.',
+  ];
+  let codeTab = 'decide';
+  function hl(line) {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const ci = line.indexOf('//');
+    const body = ci >= 0 ? line.slice(0, ci) : line;
+    const com = ci >= 0 ? line.slice(ci) : '';
+    let out = esc(body)
+      .replace(/("[^"]*")/g, '<span class="tk-s">$1</span>')
+      .replace(/\b(function|const|let|return|if)\b/g, '<span class="tk-k">$1</span>')
+      .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tk-n">$1</span>');
+    return out + (com ? `<span class="tk-c">${esc(com)}</span>` : '');
+  }
+  function renderCode() {
+    const src = codeTab === 'decide' ? CODE_DECIDE : CODE_AGENT;
+    $('code').innerHTML = src.map((l, i) => `<span class="ln" data-n="${i + 1}" id="ln${i}">${hl(l) || ' '}</span>`).join('');
+    $('tabDecide').setAttribute('aria-selected', codeTab === 'decide');
+    $('tabAgent').setAttribute('aria-selected', codeTab === 'agent');
+  }
+  $('tabDecide').onclick = () => { codeTab = 'decide'; renderCode(); };
+  $('tabAgent').onclick = () => { codeTab = 'agent'; renderCode(); };
+  renderCode();
+
+  let sweep = [];
+  function sweepStages(ms) {
+    sweep.forEach(clearTimeout); sweep = [];
+    const step = Math.max(18, (ms * 0.8) / STAGES.length);
+    STAGES.forEach((s, i) => sweep.push(setTimeout(() => {
+      document.querySelectorAll('.chip.on').forEach((e) => e.classList.remove('on'));
+      $('ch-' + s.id).classList.add('on');
+      if (codeTab === 'decide') {
+        document.querySelectorAll('.ln.on').forEach((e) => e.classList.remove('on'));
+        s.lines.forEach((n) => { const el = $('ln' + n); if (el) el.classList.add('on'); });
+      }
+    }, i * step)));
+  }
+
+  // ---------- canvas helpers ----------
+  function fit(cv) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = cv.clientWidth, h = cv.clientHeight || +cv.getAttribute('height');
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h };
+  }
+  for (const id of ['book', 'vol', 'gauge', 'calib', 'eq']) $(id).style.height = $(id).getAttribute('height') + 'px';
+
+  function spark(values, w, h) {
+    if (values.length < 2) return '';
+    let lo = Infinity, hi = -Infinity; for (const v of values) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    const span = hi - lo || 1;
+    return values.map((v, i) => `${((i / (values.length - 1)) * w).toFixed(1)},${(h - 1 - ((v - lo) / span) * (h - 2)).toFixed(1)}`).join(' ');
+  }
+
+  // ---------- panels ----------
+  function renderMarket() {
+    const html = desk.market.assets.map((a) => {
+      const chg = (a.price / a.open - 1) * 100;
+      const last = desk.recent[a.symbol]?.at(-1);
+      const col = chg >= 0 ? C.buy : C.sell;
+      const pts = spark(a.history.slice(-60), 100, 18);
+      return `<button class="mrow${a.symbol === focus ? ' sel' : ''}" data-sym="${a.symbol}" type="button" aria-pressed="${a.symbol === focus}">
+        <span class="sym">${a.symbol}</span>
+        <svg viewBox="0 0 100 18" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="${col}" stroke-width="1.2" points="${pts}"/></svg>
+        <span class="px">${fmtPx(a.price)}<small class="${chg >= 0 ? 'up' : 'dn'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</small></span>
+        <span class="chg" style="color:${ACT[last?.action || 'HOLD']}">${last ? last.action : ''}</span></button>`;
+    }).join('');
+    $('market').innerHTML = html;
+  }
+  $('market').addEventListener('click', (e) => {
+    const b = e.target.closest('.mrow'); if (!b) return;
+    focus = b.dataset.sym; renderAll();
+  });
+
+  function renderBook(a) {
+    const { ctx, w, h } = fit($('book'));
+    ctx.clearRect(0, 0, w, h);
+    const bids = a.book.bids, asks = a.book.asks;
+    let cb = 0, ca = 0; const cumB = bids.map((l) => (cb += l.size)); const cumA = asks.map((l) => (ca += l.size));
+    const max = Math.max(cb, ca);
+    const lo = bids[bids.length - 1].price, hi = asks[asks.length - 1].price;
+    const X = (p) => ((p - lo) / (hi - lo)) * w, Y = (v) => h - 14 - (v / max) * (h - 22);
+    const side = (levels, cum, col) => {
+      ctx.beginPath(); ctx.moveTo(X(levels[0].price), h - 14);
+      levels.forEach((l, i) => ctx.lineTo(X(l.price), Y(cum[i])));
+      ctx.lineTo(X(levels[levels.length - 1].price), h - 14); ctx.closePath();
+      const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, col + 'aa'); g.addColorStop(1, col + '10');
+      ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath(); levels.forEach((l, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(l.price), Y(cum[i]))); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+    };
+    side(bids, cumB, C.pink); side(asks, cumA, C.violet);
+    ctx.strokeStyle = C.faint; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(X(a.price), 4); ctx.lineTo(X(a.price), h - 14); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = C.dim; ctx.font = '10px ' + css.getPropertyValue('--mono');
+    ctx.textAlign = 'left'; ctx.fillText(fmtPx(lo), 0, h - 2);
+    ctx.textAlign = 'right'; ctx.fillText(fmtPx(hi), w, h - 2);
+    ctx.textAlign = 'center'; ctx.fillStyle = C.fg; ctx.fillText(fmtPx(a.price), X(a.price), h - 2);
+    const f = lastRec(a.symbol).features;
+    $('spread').textContent = `${fmtPx(a.book.spread)} (${(a.book.spread / a.price * 1e4).toFixed(1)} bp)`;
+    $('imb').innerHTML = `<span class="${f.imb >= 0 ? 'up' : 'dn'}">${f.imb >= 0 ? 'bid' : 'ask'} +${Math.abs(f.imb * 100).toFixed(0)}%</span>`;
+    $('bookMeta').textContent = `${a.symbol} · 12 levels`;
+  }
+
+  function renderVol(a) {
+    const { ctx, w, h } = fit($('vol'));
+    ctx.clearRect(0, 0, w, h);
+    const r = a.absRets.slice(-48); const n = 48; const bw = w / n;
+    const max = Math.max(a.baseVol * 3.5, ...r);
+    ctx.strokeStyle = C.line; ctx.beginPath(); const yb = h - (a.baseVol * 0.8 / max) * h; ctx.moveTo(0, yb); ctx.lineTo(w, yb); ctx.stroke();
+    r.forEach((v, i) => {
+      const bh = Math.max(1, (v / max) * (h - 2));
+      ctx.fillStyle = v > a.baseVol * 2.5 ? C.hot : C.pink;
+      ctx.globalAlpha = 0.45 + 0.55 * (i / r.length);
+      ctx.fillRect((n - r.length + i) * bw + 1, h - bh, Math.max(1, bw - 2), bh);
+    });
+    ctx.globalAlpha = 1;
+    $('volNow').textContent = `${(a.vol * 100).toFixed(3)}% / tick`;
+    const rel = a.vol / a.baseVol;
+    $('volRel').innerHTML = `<span style="color:${rel > 2.2 ? C.sell : rel > 1.4 ? C.hold : C.fg}">${rel.toFixed(2)}×</span>`;
+  }
+
+  const lastRec = (sym) => desk.recent[sym][desk.recent[sym].length - 1];
+
+  function renderCore(rec, a) {
+    $('coreSym').textContent = `${rec.symbol} / SIM`;
+    $('coreAct').textContent = rec.action;
+    $('coreAct').style.color = ACT[rec.action];
+    $('coreP').textContent = `p(up) ${rec.p.toFixed(3)} · ${rec.action === 'HOLD' ? 'no edge' : 'conf ' + rec.conf.toFixed(2)}`;
+    const d = rec.debate;
+    $('cDeb').innerHTML = `<span class="up">bull ${d.bull.toFixed(2)}</span> / <span class="dn">bear ${d.bear.toFixed(2)}</span> → ${d.winner}`;
+    const edge = Math.abs(2 * rec.p - 1);
+    const exp = a.vol * Math.sqrt(desk.cfg.horizon) * 0.8 * edge * 1e4;
+    $('cEdge').textContent = `${exp.toFixed(1)} bp vs ${(desk.broker.fee * 2e4).toFixed(1)} bp`;
+    $('cRisk').innerHTML = rec.action === 'HOLD' ? '<span style="color:var(--faint)">idle</span>' : rec.risk.approved ? '<span class="up">approved ' + (rec.risk.sizePct * 100).toFixed(1) + '%</span>' : `<span class="dn">veto: ${rec.risk.reasons[0]}</span>`;
+    const pos = desk.broker.position(rec.symbol);
+    const ex = desk.broker.exposure(rec.symbol, desk.market);
+    $('cPos').textContent = pos.qty === 0 ? 'flat' : `${pos.qty > 0 ? 'long' : 'short'} ${fmtQty(pos.qty)} (${(ex * 100).toFixed(1)}%)`;
+  }
+
+  function renderMatrix() {
+    const recs = desk.recent[focus].slice(-16);
+    const rows = desk.agents.map((ag) => ({ label: ag.name, vals: recs.map((r) => r.votes.find((v) => v.id === ag.id)?.score ?? 0) }));
+    rows.push({ label: 'Debate', vals: recs.map((r) => r.debate.consensus) });
+    rows.push({ label: 'p(up)', vals: recs.map((r) => (r.p - 0.5) * 4) });
+    let html = '';
+    for (const row of rows) {
+      html += `<span class="lab">${row.label}</span>`;
+      for (let i = 0; i < 16; i++) {
+        const v = row.vals[i - (16 - row.vals.length)];
+        if (v === undefined) { html += '<span class="c"></span>'; continue; }
+        const a = Math.min(1, Math.abs(v));
+        const col = v >= 0 ? C.pink : C.violet;
+        html += `<span class="c" title="${v.toFixed(2)}" style="background:color-mix(in srgb, ${col} ${(12 + a * 88).toFixed(0)}%, ${C['panel-2']})"></span>`;
+      }
+    }
+    html += '<span class="lab">Action</span>';
+    for (let i = 0; i < 16; i++) {
+      const r = recs[i - (16 - recs.length)];
+      html += r ? `<span class="c" title="${r.action}" style="background:${ACT[r.action]};opacity:${r.action === 'HOLD' ? 0.25 : 0.9}"></span>` : '<span class="c"></span>';
+    }
+    $('matrix').innerHTML = html;
+  }
+
+  function renderAgents(rec, snap) {
+    $('agents').innerHTML = desk.agents.map((ag) => {
+      const v = rec.votes.find((x) => x.id === ag.id) || { score: 0, note: '' };
+      const w = snap.weights[ag.id] ?? 0;
+      const left = v.score >= 0 ? 50 : 50 + v.score * 50, width = Math.abs(v.score) * 50;
+      return `<div class="agent" title="${v.note.replace(/"/g, '&quot;')}"><div class="nm"><b>${ag.name}</b><small>${v.note || ag.role}</small></div>
+        <div class="bar"><i style="left:${left}%;width:${width}%;background:${v.score >= 0 ? C.pink : C.violet}"></i></div>
+        <div class="w" style="color:${w >= 0 ? C.fg : C.violet}">${w >= 0 ? '+' : ''}${w.toFixed(2)}</div></div>`;
+    }).join('');
+  }
+
+  function renderGauge(snap) {
+    const { ctx, w, h } = fit($('gauge'));
+    ctx.clearRect(0, 0, w, h);
+    const ddLoad = snap.drawdown / desk.risk.cfg.maxDrawdown;
+    const load = snap.halted ? 1 : Math.min(1, Math.max(snap.gross / 1.0, ddLoad));
+    const cx = w / 2, cy = h - 10, r = Math.min(w / 2 - 10, h - 18);
+    const seg = [[0, 0.5, C.buy], [0.5, 0.8, C.hold], [0.8, 1, C.sell]];
+    ctx.lineWidth = 8; ctx.lineCap = 'butt';
+    for (const [a, b, col] of seg) { ctx.strokeStyle = col; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI + a * Math.PI, Math.PI + b * Math.PI); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.strokeStyle = C.pink; ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI + load * Math.PI); ctx.stroke();
+    const ang = Math.PI + load * Math.PI;
+    ctx.strokeStyle = C.fg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * (r - 14), cy + Math.sin(ang) * (r - 14)); ctx.stroke();
+    ctx.fillStyle = C.fg; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+    const tag = snap.halted ? 'HALTED' : load > 0.8 ? 'HIGH' : load > 0.5 ? 'MEDIUM' : 'LOW';
+    const tagCol = snap.halted || load > 0.8 ? C.sell : load > 0.5 ? C.hold : C.buy;
+    $('riskTag').innerHTML = `<span style="color:${tagCol}">${tag}</span> · load ${(load * 100).toFixed(0)}%`;
+    $('dd').textContent = `${(Math.max(0, snap.drawdown) * 100).toFixed(2)}% / ${(desk.risk.cfg.maxDrawdown * 100).toFixed(0)}%`;
+    $('gross').textContent = `${(snap.gross * 100).toFixed(1)}% · ${desk.broker.orders.length} open orders`;
+  }
+
+  function renderCalib(snap) {
+    const { ctx, w, h } = fit($('calib'));
+    ctx.clearRect(0, 0, w, h);
+    const pad = 22, pw = w - pad - 6, ph = h - 18;
+    // Most predictions sit near 0.5, so plot the 0.2–0.8 window.
+    const lo = 0.2, hi = 0.8;
+    const X = (v) => pad + ((v - lo) / (hi - lo)) * pw, Y = (v) => 4 + (1 - (v - lo) / (hi - lo)) * (ph - 4);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    for (const t of [0.2, 0.5, 0.8]) { ctx.beginPath(); ctx.moveTo(pad, Y(t)); ctx.lineTo(w - 6, Y(t)); ctx.stroke(); }
+    ctx.strokeStyle = C.faint; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(X(lo), Y(lo)); ctx.lineTo(X(hi), Y(hi)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = C.dim; ctx.font = '9px ' + css.getPropertyValue('--mono');
+    ctx.textAlign = 'right'; for (const t of [0.2, 0.5, 0.8]) ctx.fillText(t.toFixed(1), pad - 4, Y(t) + 3);
+    [[0.2, 'left'], [0.5, 'center'], [0.8, 'right']].forEach(([t, al]) => { ctx.textAlign = al; ctx.fillText(t.toFixed(1), X(t), h - 2); });
+    const total = snap.calib.reduce((s, b) => s + b.n, 0) || 1;
+    const pts = [];
+    snap.calib.forEach((b, i) => {
+      if (b.n < 30) return;
+      const px = (i + 0.5) / 10, obs = b.ups / b.n;
+      if (px < lo || px > hi) return;
+      pts.push([X(px), Y(Math.max(lo, Math.min(hi, obs))), b.n]);
+    });
+    ctx.strokeStyle = C.pink; ctx.lineWidth = 1.5; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    for (const [x, y, n] of pts) { ctx.fillStyle = C.hot; ctx.beginPath(); ctx.arc(x, y, 2 + Math.sqrt(n / total) * 6, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  function renderEquity(snap) {
+    const { ctx, w, h } = fit($('eq'));
+    ctx.clearRect(0, 0, w, h);
+    const e = desk.equityCurve;
+    if (e.length > 1) {
+      let lo = Math.min(...e, desk.broker.startCash), hi = Math.max(...e, desk.broker.startCash); const sp = hi - lo || 1;
+      const X = (i) => (i / (e.length - 1)) * w, Y = (v) => h - 2 - ((v - lo) / sp) * (h - 4);
+      ctx.strokeStyle = C.line; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(0, Y(desk.broker.startCash)); ctx.lineTo(w, Y(desk.broker.startCash)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); e.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))));
+      const col = snap.pnl >= 0 ? C.buy : C.sell; ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fillStyle = col + '1f'; ctx.fill();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(e.length - 1), Y(e[e.length - 1]), 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    $('sEq').textContent = `$${snap.equity.toLocaleString('en-US', { maximumFractionDigits: 0 })} from $${desk.broker.startCash.toLocaleString('en-US')}`;
+  }
+
+  function renderLog() {
+    const items = desk.log.slice(-70).reverse();
+    $('log').innerHTML = items.map((l) => `<div class="${l.level}"><span>t${l.t}</span><span>${l.stage}</span><span>${l.symbol}</span><span>${l.text.replace(/</g, '&lt;')}</span></div>`).join('');
+    $('logMeta').textContent = `${desk.log.length} events`;
+  }
+
+  function renderStats(snap) {
+    $('sTicks').textContent = snap.t.toLocaleString('en-US');
+    $('sSeed').textContent = `tape seed ${seed} · ${snap.resolved.toLocaleString('en-US')} graded`;
+    $('sHit').textContent = (snap.hitRate * 100).toFixed(1) + '%';
+    $('sHit').style.color = snap.hitRate >= 0.5 ? C.buy : C.sell;
+    $('sBrier').textContent = snap.brier.toFixed(4);
+    $('sLat').textContent = snap.latency < 1 ? (snap.latency * 1000).toFixed(0) + ' µs' : snap.latency.toFixed(2) + ' ms';
+    const pnl = snap.pnl;
+    $('sPnl').textContent = (pnl >= 0 ? '+$' : '−$') + Math.abs(pnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    $('sPnl').style.color = pnl >= 0 ? C.buy : C.sell;
+    $('sFees').textContent = `fees $${snap.fees.toFixed(0)} · realized $${snap.realized.toFixed(0)}`;
+  }
+
+  function renderPipe(rec, snap, a) {
+    $('cv-watch').textContent = fmtPx(a.price);
+    $('cv-analysts').textContent = `${desk.agents.length} voting`;
+    $('cv-debate').textContent = rec.debate.winner;
+    $('cv-signal').innerHTML = `<span style="color:${ACT[rec.action]}">${rec.action}</span> ${rec.p.toFixed(2)}`;
+    $('cv-risk').textContent = rec.action === 'HOLD' ? 'idle' : rec.risk.approved ? 'ok' : 'veto';
+    $('cv-execute').textContent = `${desk.broker.orders.length} open`;
+    $('cv-report').textContent = (snap.hitRate * 100).toFixed(0) + '% hit';
+    const live = $('live');
+    live.className = 'live' + (snap.halted ? ' halt' : paused ? ' paused' : '');
+    live.textContent = snap.halted ? 'HALTED' : paused ? 'PAUSED' : 'LIVE';
+  }
+
+  function renderAll() {
+    const a = desk.market.get(focus);
+    const rec = lastRec(focus);
+    const snap = desk.snapshot();
+    renderPipe(rec, snap, a);
+    renderMarket();
+    renderBook(a);
+    renderVol(a);
+    renderCore(rec, a);
+    renderMatrix();
+    renderAgents(rec, snap);
+    renderGauge(snap);
+    renderCalib(snap);
+    renderEquity(snap);
+    renderLog();
+    renderStats(snap);
+    $('orbMeta').textContent = `tick ${snap.t} · ${desk.market.assets.length} symbols · horizon ${desk.cfg.horizon}`;
+  }
+
+  // ---------- loop ----------
+  function step() {
+    for (let i = 0; i < speed; i++) {
+      lastTick = desk.tick();
+      for (const r of lastTick.decisions) {
+        if (r.action !== 'HOLD' && r.order) spawnCallout(r);
+      }
+    }
+    pulse = Math.min(1.6, pulse + Math.abs(desk.market.get(focus).lastRet) / desk.market.get(focus).baseVol * 0.25);
+    renderAll();
+    sweepStages(300);
+  }
+  function start() { stop(); timer = setInterval(step, 300); }
+  function stop() { if (timer) clearInterval(timer); timer = null; }
+
+  $('pause').onclick = () => { paused = !paused; $('pause').textContent = paused ? 'Resume' : 'Pause'; paused ? stop() : start(); renderAll(); };
+  $('speed').onchange = (e) => { speed = +e.target.value; };
+  $('reset').onclick = () => { callouts.length = 0; boot(); };
+  $('edge').oninput = (e) => { desk.cfg.minEdge = +e.target.value; $('edgeVal').textContent = (+e.target.value).toFixed(2); };
+
+  // ---------- orbital engine ----------
+  const orb = $('orb');
+  let pulse = 0, rot = 0, parts = [], ow = 0, oh = 0;
+  const N = reduced ? 500 : matchMedia('(max-width: 760px)').matches ? 1100 : 2200;
+  for (let i = 0; i < N; i++) parts.push({ th: Math.random() * Math.PI * 2, ph: Math.random() * Math.PI * 2, sp: 0.6 + Math.random() * 0.8, sw: (Math.random() - 0.5) * 2.2, rj: 0.85 + Math.random() * 0.3, px: null, py: null, hot: Math.random() < 0.08 });
+
+  function project(th, ph, rj) {
+    const R = Math.min(ow * 0.38, oh * 0.78), r = R * 0.17 * rj;
+    const x = (R + r * Math.cos(ph)) * Math.cos(th + rot);
+    const y = (R + r * Math.cos(ph)) * Math.sin(th + rot);
+    const z = r * Math.sin(ph);
+    const tilt = 1.18, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const y2 = y * ct - z * st, z2 = y * st + z * ct;
+    const s = 900 / (900 + z2);
+    return [ow / 2 + x * s, oh / 2 + y2 * s * 1.0, z2 / R];
+  }
+
+  function spawnCallout(r) {
+    if (callouts.some((c) => c.symbol === r.symbol)) return;
+    if (callouts.length >= 4) callouts.shift();
+    callouts.push({ symbol: r.symbol, text: `${r.symbol} · ${r.action} ${r.conf.toFixed(2)}`, sub: `p(up) ${r.p.toFixed(2)} · ${(r.risk.sizePct * 100).toFixed(1)}% eq`, col: ACT[r.action], th: Math.random() * Math.PI * 2, born: performance.now() });
+  }
+
+  let lastFrame = performance.now();
+  function frame(tnow) {
+    const dt = Math.min(0.05, (tnow - lastFrame) / 1000); lastFrame = tnow;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = orb.clientWidth, h = orb.clientHeight;
+    if (orb.width !== Math.round(w * dpr) || orb.height !== Math.round(h * dpr)) { orb.width = Math.round(w * dpr); orb.height = Math.round(h * dpr); parts.forEach((p) => (p.px = null)); }
+    ow = w; oh = h;
+    const ctx = orb.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(18,10,24,0.22)'; ctx.fillRect(0, 0, w, h);
+
+    const rec = desk && lastRec(focus);
+    const tint = rec ? ACT[rec.action] : C.pink;
+    const speedK = (reduced ? 0.25 : 1) * (0.55 + pulse * 0.6);
+    pulse *= 0.985;
+    rot += dt * 0.05 * (reduced ? 0.3 : 1);
+
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1;
+    for (const p of parts) {
+      p.th += dt * 0.35 * p.sp * speedK;
+      p.ph += dt * p.sw * speedK;
+      const [x, y, z] = project(p.th, p.ph, p.rj);
+      if (p.px !== null) {
+        const a = 0.18 + 0.5 * (1 - (z + 0.4) / 0.8);
+        ctx.strokeStyle = p.hot ? tint : C.pink;
+        ctx.globalAlpha = Math.max(0.05, Math.min(0.85, a)) * (p.hot ? 1 : 0.7);
+        ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(x, y); ctx.stroke();
+      }
+      p.px = x; p.py = y;
+    }
+    ctx.globalAlpha = 1;
+    // inner glow
+    const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.min(w, h) * 0.28);
+    g.addColorStop(0, tint + '22'); g.addColorStop(1, tint + '00');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    // callouts
+    const mono = css.getPropertyValue('--mono');
+    for (let i = callouts.length - 1; i >= 0; i--) {
+      const c = callouts[i];
+      const age = (tnow - c.born) / 1000;
+      if (age > 3.2) { callouts.splice(i, 1); continue; }
+      const alpha = Math.min(1, age * 4, (3.2 - age) * 2);
+      const [ax, ay] = project(c.th, 0, 1.15);
+      const right = ax > w / 2, down = ay > h / 2;
+      const lx = Math.max(8, Math.min(w - 150, ax + (right ? 36 : -186)));
+      const ly = Math.max(30, Math.min(h - 70, ay + (down ? 26 : -50)));
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = c.col; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(right ? lx : lx + 150, ly + 12); ctx.stroke();
+      ctx.fillStyle = c.col; ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(10,5,16,0.82)'; ctx.fillRect(lx, ly, 150, 34);
+      ctx.strokeRect(lx + 0.5, ly + 0.5, 149, 33);
+      ctx.fillStyle = c.col; ctx.font = '600 11px ' + mono; ctx.textAlign = 'left'; ctx.fillText(c.text, lx + 8, ly + 14);
+      ctx.fillStyle = C.dim; ctx.font = '10px ' + mono; ctx.fillText(c.sub, lx + 8, ly + 27);
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+
+  boot();
+  start();
+  requestAnimationFrame(frame);
+  addEventListener('resize', () => desk && renderAll());
+})();
+</script>
+</body>
+</html>
