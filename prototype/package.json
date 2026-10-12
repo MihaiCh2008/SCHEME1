@@ -4,7 +4,7 @@
   "private": true,
   "description": "Agent-based BUY/SELL/HOLD signal engine and trading desk dashboard on a simulated market with a paper broker.",
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test *.test.js",
     "start": "python3 -m http.server 8080"
   },
   "license": "MIT"

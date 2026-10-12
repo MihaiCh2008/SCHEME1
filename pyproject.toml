@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scheme1"
+version = "0.1.0"
+description = "Self-hosted research and paper-trading desk. Simulation only: no real-money execution."
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "pydantic==2.11.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"

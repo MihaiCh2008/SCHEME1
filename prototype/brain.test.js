@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const Brain = require('../brain.js');
+const Brain = require('./brain.js');
 
 test('same seed gives the same tape and decisions', () => {
   const a = new Brain.Desk({ seed: 3, warmup: 50 });
