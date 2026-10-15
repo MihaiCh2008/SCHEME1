@@ -79,3 +79,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** memecoin volatility differs by 10× or more between tokens and intervals; raw-return thresholds would mean different things on each. Keeping the manager out of Stage 5 means agents can't see each other, so bull and bear stay independent.
 - **Alternatives:** fixed percentage thresholds (rejected: interval-dependent); a news agent (no news source; deferred).
 - **Consequence:** weights and limits (`AgentConfig` a1.0.0) are unvalidated guesses until backtesting (Stage 8).
+
+## D15. Quick-trade strategy with fixed exits; exits allowed when the desk is degraded (2026-10-15)
+- **Choice:** strategy `quick-1.0.0` holds for minutes to a few hours: take profit +5%, stop loss −3%, time limit 2 hours, early exit when the combined score drops to −0.35. Entry needs a safe token, no blocking risk and a combined score of at least +0.35. `RiskVerdict.exit_only` lets an exit pass when the desk is DEGRADED or PAUSED; EMERGENCY_STOP blocks everything (schema 1.4.0).
+- **Why:** the user wants quick in-and-out trades. Sniping new launches was rejected: most new tokens are scams (our 24-hour pool-age rule blocks them), paid low-latency bots win those races, and the free data is 1-minute candles at best. A round trip on a memecoin DEX costs roughly 0.5–2%, so the take profit must clear that (enforced in `StrategyConfig`). Blocking exits whenever the desk is not NORMAL could lock in a loss.
+- **Alternatives:** sniping (rejected, above); holding for days (not what the user wants); trailing stops (later, after backtesting).
+- **Consequence:** stops are checked on candle closes, so gaps can make a loss larger than 3%. All the numbers are guesses until Stage 8.

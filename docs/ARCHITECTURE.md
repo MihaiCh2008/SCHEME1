@@ -76,6 +76,8 @@ It runs outside any agent and reads its limits from a versioned config that agen
 | `duplicate_or_conflict` | an open order exists on the same symbol, or the intent opposes an open order |
 | `short_sale` | a sell exceeds the held quantity |
 
+Exits (sells that only reduce a position) may also pass when the desk is `DEGRADED` or `PAUSED`, so a stop loss is never locked in (`RiskVerdict.exit_only`, D15). `EMERGENCY_STOP` blocks everything. `correlated_exposure` is not built yet.
+
 Desk states: `NORMAL` → `DEGRADED` (automatic on data problems; clears when data recovers) → `PAUSED` (operator or drawdown; cleared by operator) → `EMERGENCY_STOP` (kill switch: cancels all open orders, needs a manual reset).
 
 ## 5. Confidence

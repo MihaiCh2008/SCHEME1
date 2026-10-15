@@ -109,6 +109,9 @@ def test_risk_verdict_cannot_approve_with_failed_check_or_bad_state():
     with pytest.raises(ValidationError):
         RiskVerdict(approved=True, desk_state=DeskState.PAUSED, checks=(ok,), **kw)
     RiskVerdict(approved=False, desk_state=DeskState.EMERGENCY_STOP, checks=(ok, bad), **kw)
+    RiskVerdict(approved=True, desk_state=DeskState.DEGRADED, checks=(ok,), exit_only=True, **kw)
+    with pytest.raises(ValueError):
+        RiskVerdict(approved=True, desk_state=DeskState.EMERGENCY_STOP, checks=(ok,), exit_only=True, **kw)
 
 
 def test_order_transitions():

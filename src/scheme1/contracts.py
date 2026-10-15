@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.4.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -408,13 +408,16 @@ class RiskVerdict(Contract):
     checks: tuple[RiskCheck, ...]
     risk_config_version: str
     evaluated_at: UTCDateTime
+    exit_only: bool = False  # the intent only reduces a held position
 
     @model_validator(mode="after")
     def _approved_means_all_passed(self) -> RiskVerdict:
         if self.approved and not all(c.passed for c in self.checks):
             raise ValueError("cannot approve with a failed check")
         if self.approved and self.desk_state is not DeskState.NORMAL:
-            raise ValueError("cannot approve new orders unless the desk is NORMAL")
+            # DEGRADED and PAUSED still allow exits, so a stop loss can't be locked in; EMERGENCY_STOP allows nothing.
+            if not self.exit_only or self.desk_state is DeskState.EMERGENCY_STOP:
+                raise ValueError("cannot approve new orders unless the desk is NORMAL")
         return self
 
 
