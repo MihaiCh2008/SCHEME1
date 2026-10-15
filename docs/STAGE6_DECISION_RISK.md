@@ -22,7 +22,15 @@ Strategy `quick-1.0.0`, for trades of minutes to a few hours (DECISIONS.md D15).
 
 `StrategyConfig` refuses settings that can't make money: take profit must be larger than the round-trip cost (1% assumed), and the exit score must be below the buy threshold.
 
-**Known limit:** exits are checked on candle closes and a SELL fills at the next open (ARCHITECTURE.md section 3). So a loss can be larger than 3% when the price gaps down.
+**Protective exits** (`scheme1.broker.protective`, D16). A stop loss and a take profit are set as soon as a position opens. Each later candle is checked against its **low and high**, not just its close:
+- a stop fills at the stop price inside the candle;
+- if the candle opens past a level (the price gapped), the fill is at the open, which is worse for a stop;
+- if one candle reaches both levels, the stop is assumed, because the order inside the candle is unknown;
+- a candle with no volume fills nothing.
+
+The close-based stop and take profit in `decide()` stay as a backup.
+
+**What this can't fix:** a gap. If a token halves between two trades, it still sells at half. On a real DEX there are no exchange-held stop orders, so a bot would have to watch the price. The simulation assumes the watcher reacts within the candle, so live results would be somewhat worse.
 
 ## 2. Order authorizer (`scheme1.decision.authorize`)
 
@@ -69,6 +77,8 @@ Config `r1.0.0`. Every check runs every time and all results are stored. Any fai
 - no short sales.
 
 The contract test also covers `exit_only`.
+
+11 tests in `tests/test_protective.py`: stop inside a candle, take profit, gap down and gap up fill at the open, both levels in one candle → stop, opening exactly at the stop, no exit inside the band, no fill without volume, slippage, bad entry price.
 
 ## 5. Live check (2026-10-15)
 

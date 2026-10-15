@@ -85,3 +85,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** the user wants quick in-and-out trades. Sniping new launches was rejected: most new tokens are scams (our 24-hour pool-age rule blocks them), paid low-latency bots win those races, and the free data is 1-minute candles at best. A round trip on a memecoin DEX costs roughly 0.5–2%, so the take profit must clear that (enforced in `StrategyConfig`). Blocking exits whenever the desk is not NORMAL could lock in a loss.
 - **Alternatives:** sniping (rejected, above); holding for days (not what the user wants); trailing stops (later, after backtesting).
 - **Consequence:** stops are checked on candle closes, so gaps can make a loss larger than 3%. All the numbers are guesses until Stage 8.
+
+## D16. Stop loss and take profit checked inside each candle (2026-10-15)
+- **Choice:** every position gets protective levels at entry. Each later candle is checked on its low and high: the stop fills at the stop price, or at the open when the candle gapped past it. When one candle reaches both levels, the stop is assumed. Zero-volume candles fill nothing. The close-based exit in `decide()` stays as a backup.
+- **Why:** checking only candle closes and selling at the next open let a −3% stop become a much larger loss. The user asked for this to be fixed.
+- **Alternatives:** check closes on 1-minute candles (better, but still waits for a close); assume the take profit when both levels are hit (rejected: optimistic, and it would flatter backtests).
+- **Consequence:** gaps can't be prevented. Real DEX trading has no exchange-held stops, so a live bot would do somewhat worse than this simulation.

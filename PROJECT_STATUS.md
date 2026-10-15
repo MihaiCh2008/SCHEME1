@@ -10,7 +10,7 @@ _Last updated: 2026-10-15 (Stage 6)_
 | 4 | Deterministic quantitative logic | **Done**: [docs/STAGE4_FEATURES.md](docs/STAGE4_FEATURES.md); features in `src/scheme1/features/`, token safety in `src/scheme1/safety/` |
 | 4b | On-chain token checks | **Verified live, all 4 checks run** (Helius free plan). BONK fails holder concentration and stays blocked by choice (D13) |
 | 5 | Research agents | **Phase 1 done** (deterministic): [docs/STAGE5_AGENTS.md](docs/STAGE5_AGENTS.md); code in `src/scheme1/agents/`. Phase 2 (optional LLM) not started |
-| 6 | Decision and risk engines | **Done**: [docs/STAGE6_DECISION_RISK.md](docs/STAGE6_DECISION_RISK.md); code in `src/scheme1/decision/` and `src/scheme1/risk/`. Quick-trade strategy with take profit, stop loss and time limit (D15) |
+| 6 | Decision and risk engines | **Done**: [docs/STAGE6_DECISION_RISK.md](docs/STAGE6_DECISION_RISK.md); code in `src/scheme1/decision/` and `src/scheme1/risk/`. Quick-trade strategy with take profit, stop loss and time limit (D15); stops checked inside each candle (D16) |
 | 7 | Paper execution and accounting | Not started |
 | 8 | Backtesting | Not started |
 | 9 | End-to-end proof | Not started |
@@ -26,7 +26,7 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-10-15, Python 3.13.16: **152 passed, 0 failed, 0 skipped** (14 contract, 44 data-pipeline, 12 feature, 15 safety, 23 on-chain, 14 agent, 30 decision and risk tests). No test uses the network.
+Result on 2026-10-15, Python 3.13.16: **163 passed, 0 failed, 0 skipped** (14 contract, 44 data-pipeline, 12 feature, 15 safety, 23 on-chain, 14 agent, 30 decision and risk, 11 protective-exit tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
@@ -60,5 +60,5 @@ Live trading through a dedicated bot wallet is documented as an idea with entry 
 
 ## Next stage
 
-1. **Stage 7: paper execution and accounting.** Paper broker with the fill rules of ARCHITECTURE.md section 3 (next-candle open, slippage, fees, partial fills), portfolio accounting, the desk state machine, and the SQLite audit log.
+1. **Stage 7: paper execution and accounting.** Paper broker (using the protective exits in `src/scheme1/broker/protective.py`) with the fill rules of ARCHITECTURE.md section 3 (next-candle open, slippage, fees, partial fills), portfolio accounting, the desk state machine, and the SQLite audit log.
 2. Later, optional: Stage 5 phase 2 (an LLM agent behind the same contract). Needs a provider decision first.
