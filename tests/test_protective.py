@@ -49,3 +49,58 @@ def test_slippage_lowers_the_sell_price():
 def test_bad_entry_price_is_refused():
     with pytest.raises(ValueError):
         ProtectiveLevels.from_entry(Decimal(0), Decimal(3), Decimal(5))
+
+
+# ------------------------------------------------------------ trailing stop
+
+from datetime import timedelta  # noqa: E402
+
+from scheme1.broker import follow  # noqa: E402
+
+TRAIL = ProtectiveLevels.from_entry(Decimal(100), Decimal(3), Decimal(5), trail_pct=Decimal(2))
+
+
+def seq(*ohlc):
+    return [make_candle(T + i * timedelta(minutes=5), open=Decimal(str(o)), high=Decimal(str(h)),
+                        low=Decimal(str(lo)), close=Decimal(str(cl)), volume=Decimal(10))
+            for i, (o, h, lo, cl) in enumerate(ohlc)]
+
+
+def test_trailing_stop_follows_the_price_up_and_locks_in_profit():
+    # 100 -> 102 -> 104, then a fall: the stop has moved to 104 * 0.98 = 101.92
+    exit_, levels = follow(seq((100, 100, 99, 100), (100, 102, 100, 102), (102, 104, 102, 104),
+                               (104, 104, 101, 101.5)), TRAIL, NO_SLIP)
+    assert exit_.reason == "stop_loss" and not exit_.gapped
+    assert exit_.reference_price == Decimal("101.92")  # a profit, not a loss
+    assert levels.highest == 104
+
+
+def test_trailing_stop_never_moves_down():
+    _, levels = follow(seq((100, 103, 100, 103), (103, 103, 101.5, 101.5)), TRAIL, NO_SLIP)
+    assert levels.stop_price == Decimal("100.94")  # 103 * 0.98, kept after the lower candle
+
+
+def test_small_dip_does_not_end_the_trade():
+    exit_, levels = follow(seq((100, 101, 98.5, 100), (100, 101.5, 99.6, 101)), TRAIL, NO_SLIP)
+    assert exit_ is None and levels.stop_price == Decimal("99.47")  # 101.5 * 0.98
+
+
+def test_a_candles_own_high_does_not_protect_its_low():
+    # one candle goes up to 104 and down to 98: the stop in force was the initial 97, so no exit
+    exit_, levels = follow(seq((100, 104, 98, 99)), TRAIL, NO_SLIP)
+    assert exit_ is None and levels.stop_price == Decimal("101.92")
+
+
+def test_take_profit_still_wins_on_a_strong_rise():
+    exit_, _ = follow(seq((100, 102, 100, 102), (102, 106, 102, 105)), TRAIL, NO_SLIP)
+    assert exit_.reason == "take_profit" and exit_.reference_price == 105
+
+
+def test_fixed_stop_does_not_trail():
+    _, levels = follow(seq((100, 104, 100, 104)), LEVELS, NO_SLIP)
+    assert levels.stop_price == 97
+
+
+def test_bad_trail_is_refused():
+    with pytest.raises(ValueError):
+        ProtectiveLevels.from_entry(Decimal(100), Decimal(3), Decimal(5), trail_pct=Decimal(0))

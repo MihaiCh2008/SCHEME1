@@ -4,7 +4,9 @@ Order of rules (the first that applies wins):
 1. Data not OK -> HOLD (the ``Decision`` contract enforces this too). With a position open this
    also means no exit, because the price can't be trusted; ``rejection_reasons`` says so.
 2. A position is open -> exit rules: take profit, stop loss, time limit, token no longer tradable,
-   or the combined score turned clearly bearish -> SELL. Otherwise HOLD.
+   or the combined score is no longer bullish (<= ``exit_score``, 0 by default) -> SELL. Otherwise HOLD.
+   The trailing stop itself runs inside each candle in ``scheme1.broker.protective``; the close-based
+   take profit and initial stop here are a backup.
 3. No position -> BUY only if the token is tradable, the risk agent raised no blocking risk,
    market and technical both gave an opinion, and the combined score clears ``buy_threshold``.
    Otherwise HOLD.
@@ -29,16 +31,17 @@ from scheme1.contracts import (
     AgentOutput, AgentStatus, Confidence, DataStatus, Decision, Evidence, Signal, Stance,
 )
 
-STRATEGY_VERSION = "quick-1.0.0"
+STRATEGY_VERSION = "quick-1.1.0"
 MODEL_VERSION = "deterministic-a1.0.0"
 
 
 @dataclass(frozen=True)
 class StrategyConfig:
     buy_threshold: float = 0.35  # combined score needed to enter
-    exit_score: float = -0.35  # combined score that closes a position early
+    exit_score: float = 0.0  # close early as soon as the agents stop being bullish
     take_profit_pct: Decimal = Decimal(5)
-    stop_loss_pct: Decimal = Decimal(3)
+    stop_loss_pct: Decimal = Decimal(3)  # initial stop; the trailing stop then follows the price up
+    trail_pct: Decimal = Decimal(2)  # stop stays this far below the highest price since entry
     max_hold: timedelta = timedelta(hours=2)
     round_trip_cost_pct: Decimal = Decimal("1.0")  # fees + slippage, buy and sell together (a guess)
     weights: tuple[tuple[str, float], ...] = (("market", 0.35), ("technical", 0.35), ("advocates", 0.3))
@@ -51,6 +54,8 @@ class StrategyConfig:
             raise ValueError("stop loss must be between 0 and 100 percent")
         if self.exit_score >= self.buy_threshold:
             raise ValueError("exit_score must be below buy_threshold")
+        if not 0 < self.trail_pct < self.take_profit_pct:
+            raise ValueError("trail must be positive and smaller than the take profit")
 
 
 @dataclass(frozen=True)

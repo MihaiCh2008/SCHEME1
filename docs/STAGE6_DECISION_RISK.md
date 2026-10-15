@@ -6,15 +6,15 @@ The chain for one closed candle: agents → `decide()` → `authorize()` → `ev
 
 ## 1. Decision engine (`scheme1.decision.decide`)
 
-Strategy `quick-1.0.0`, for trades of minutes to a few hours (DECISIONS.md D15). The first rule that applies wins:
+Strategy `quick-1.1.0`, for trades of minutes to a few hours (DECISIONS.md D15, D17). The first rule that applies wins:
 
 1. **Data not OK → HOLD.** With a position open there is no exit either, since the price can't be trusted. `rejection_reasons` says so.
 2. **Position open → exit rules.** SELL on any of:
    - take profit: last close ≥ entry + 5%;
-   - stop loss: last close ≤ entry − 3%;
+   - stop loss: last close ≤ entry − 3% (a backup: the trailing stop below acts inside each candle);
    - time limit: held ≥ 2 hours;
    - the token is no longer tradable;
-   - the combined score is ≤ −0.35.
+   - the combined score is ≤ 0, so the agents are no longer bullish.
    Otherwise HOLD.
 3. **No position → BUY only if all hold:** the token is tradable, the risk agent raised no blocking risk, market and technical both gave an opinion, and the combined score is ≥ +0.35. Otherwise HOLD, listing every reason that failed.
 
@@ -22,7 +22,7 @@ Strategy `quick-1.0.0`, for trades of minutes to a few hours (DECISIONS.md D15).
 
 `StrategyConfig` refuses settings that can't make money: take profit must be larger than the round-trip cost (1% assumed), and the exit score must be below the buy threshold.
 
-**Protective exits** (`scheme1.broker.protective`, D16). A stop loss and a take profit are set as soon as a position opens. Each later candle is checked against its **low and high**, not just its close:
+**Protective exits** (`scheme1.broker.protective`, D16, D17). A **trailing stop** and a take profit are set as soon as a position opens. The stop starts 3% below the entry. After each candle it moves up to 2% below the highest price so far, and it never moves down. Example: buy at 100, the price rises to 104, the stop is now 101.92, so a fall sells at about +1.9%. The stop is raised only after a candle is checked, because within one candle it is unknown whether the high came before the low. Each later candle is checked against its **low and high**, not just its close:
 - a stop fills at the stop price inside the candle;
 - if the candle opens past a level (the price gapped), the fill is at the open, which is worse for a stop;
 - if one candle reaches both levels, the stop is assumed, because the order inside the candle is unknown;
@@ -64,7 +64,7 @@ Config `r1.0.0`. Every check runs every time and all results are stored. Any fai
 
 ## 4. Checks
 
-30 tests in `tests/test_decision_risk.py`:
+31 tests in `tests/test_decision_risk.py` (one new: exit as soon as the agents stop being bullish):
 - a strong uptrend on a safe token buys;
 - each missing condition gives HOLD with the right reason: unsafe token, stale data, flat or falling market, risk flag, warm-up;
 - disagreement lowers confidence, and invalid agents are left out;
@@ -78,7 +78,7 @@ Config `r1.0.0`. Every check runs every time and all results are stored. Any fai
 
 The contract test also covers `exit_only`.
 
-11 tests in `tests/test_protective.py`: stop inside a candle, take profit, gap down and gap up fill at the open, both levels in one candle → stop, opening exactly at the stop, no exit inside the band, no fill without volume, slippage, bad entry price.
+18 tests in `tests/test_protective.py`: the trailing stop follows the price up and locks in profit, never moves down, survives a small dip, isn't raised by the same candle's high, take profit still wins, a fixed stop doesn't trail; plus stop inside a candle, take profit, gap down and gap up fill at the open, both levels in one candle → stop, opening exactly at the stop, no exit inside the band, no fill without volume, slippage, bad entry price.
 
 ## 5. Live check (2026-10-15)
 

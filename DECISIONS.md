@@ -91,3 +91,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** checking only candle closes and selling at the next open let a −3% stop become a much larger loss. The user asked for this to be fixed.
 - **Alternatives:** check closes on 1-minute candles (better, but still waits for a close); assume the take profit when both levels are hit (rejected: optimistic, and it would flatter backtests).
 - **Consequence:** gaps can't be prevented. Real DEX trading has no exchange-held stops, so a live bot would do somewhat worse than this simulation.
+
+## D17. Trailing stop, and exit as soon as the agents stop being bullish (2026-10-15)
+- **Choice:** strategy `quick-1.1.0`. The stop starts 3% below the entry, then follows the price up: after each candle it is 2% below the highest high since entry, and it never moves down. The take profit stays at +5%. The early-exit score moves from −0.35 to 0, so a position closes as soon as the combined score is no longer bullish.
+- **Why:** the user's idea: hold while the price is rising, and exit as soon as it turns down. Exiting on the very first dip was rejected: prices always wiggle, so almost every trade would end within minutes, and the ~1% round-trip cost would eat everything. A 2% trail ignores small dips but exits on a real turn, and once the price is about 2% up, a loss is no longer possible.
+- **Alternatives:** exit on any drop below the entry (rejected, above); a trail based on ATR (adapts to each token; worth testing in Stage 8).
+- **Consequence:** exits happen sooner and more often. 2% may be too tight for very volatile memecoins; backtesting will tell.

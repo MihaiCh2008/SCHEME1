@@ -181,3 +181,10 @@ def test_exits_pass_when_paused_or_in_drawdown_but_never_in_emergency_stop():
 def test_cannot_sell_more_than_held():
     v = evaluate_risk(sell_intent(Decimal(5000)), ctx(portfolio(qty=Decimal(100))))
     assert not v.approved and "short_sale" in failed(v)
+
+
+def test_exits_as_soon_as_the_agents_stop_being_bullish():
+    d = run(inputs(snap(FLAT)), position(change_pct=1))
+    assert d.signal is Signal.SELL and "combined score" in d.explanation
+    with pytest.raises(ValueError):
+        StrategyConfig(trail_pct=Decimal(6))  # wider than the take profit
