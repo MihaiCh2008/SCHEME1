@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 
-from scheme1.contracts import PoolSnapshot, TokenOnchainInfo
+from scheme1.contracts import PoolSnapshot, SafetyReport, TokenOnchainInfo
 from scheme1.data.providers.base import ProviderError
 from scheme1.data.providers.geckoterminal import ATTRIBUTION, pool_symbol
 from scheme1.safety.checks import evaluate
@@ -18,12 +18,8 @@ from scheme1.safety.pools import DexScreenerPools, GeckoTerminalPools
 from scheme1.safety.solana import SolanaRpc
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--pool", required=True, help="Solana pool address (not the token mint)")
-    args = parser.parse_args(argv)
-    symbol = pool_symbol("solana", args.pool)
-
+def check_pool(symbol: str) -> SafetyReport:
+    """Fetch both pool snapshots and the on-chain data, then evaluate. Provider problems become warnings."""
     snaps: list[PoolSnapshot] = []
     for source in (GeckoTerminalPools(), DexScreenerPools()):
         try:
@@ -38,7 +34,14 @@ def main(argv: list[str] | None = None) -> int:
         except ProviderError as err:
             print(f"warning: {err}")
 
-    report = evaluate(symbol, snaps, datetime.now(timezone.utc), onchain=onchain)
+    return evaluate(symbol, snaps, datetime.now(timezone.utc), onchain=onchain)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--pool", required=True, help="Solana pool address (not the token mint)")
+    args = parser.parse_args(argv)
+    report = check_pool(pool_symbol("solana", args.pool))
     print(f"Market data: GeckoTerminal, DexScreener, Solana RPC. {ATTRIBUTION}")
     print(f"pool {args.pool}: {'TRADABLE' if report.tradable else 'BLOCKED'}")
     for c in report.checks:

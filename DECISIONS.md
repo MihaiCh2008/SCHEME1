@@ -73,3 +73,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Alternatives:** (b) a reviewed list of known exchange wallets, excluded like program-controlled owners; (c) a higher top-10 limit. Both deferred; can be revisited once paper results show how many tokens are blocked.
 - **Consequence:** large tokens with exchange-held supply, such as BONK, are blocked. Fewer pools are tradable.
 - **Also:** the public RPC refuses `getTokenLargestAccounts` (HTTP 429), so `SCHEME1_SOLANA_RPC_URL` must point to a provider such as the Helius free plan.
+
+## D14. Phase-1 agents: volatility-scaled signals; manager moves to Stage 6 (2026-10-15)
+- **Choice:** six deterministic agents (market, technical, data quality, bull, bear, risk). Price signals are divided by candle volatility. The data agent uses the contract's `data_news` role and is never directional. The risk agent only subtracts (score ≤ 0). Any output citing an unknown input, or a FACT citing a missing value, is `INVALID`. The manager is built with the decision engine in Stage 6.
+- **Why:** memecoin volatility differs by 10× or more between tokens and intervals; raw-return thresholds would mean different things on each. Keeping the manager out of Stage 5 means agents can't see each other, so bull and bear stay independent.
+- **Alternatives:** fixed percentage thresholds (rejected: interval-dependent); a news agent (no news source; deferred).
+- **Consequence:** weights and limits (`AgentConfig` a1.0.0) are unvalidated guesses until backtesting (Stage 8).
