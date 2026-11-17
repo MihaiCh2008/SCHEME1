@@ -7,9 +7,9 @@ Order of rules (the first that applies wins):
    or the combined score is no longer bullish (<= ``exit_score``, 0 by default) -> SELL. Otherwise HOLD.
    The trailing stop itself runs inside each candle in ``scheme1.broker.protective``; the close-based
    take profit and initial stop here are a backup.
-3. No position -> BUY only if the token is tradable, the risk agent raised no blocking risk,
-   market and technical both gave an opinion, and the combined score clears ``buy_threshold``.
-   Otherwise HOLD.
+3. No position -> BUY only if the token is tradable, the feature warm-up is complete, the risk agent
+   raised no blocking risk, market and technical both gave an opinion, and the combined score clears
+   ``buy_threshold``. Otherwise HOLD.
 
 Combined score = weighted mean of the market and technical scores and the bull/bear balance.
 Votes are not counted as proof: bull and bear are advocates and only shift the score.
@@ -31,7 +31,7 @@ from scheme1.contracts import (
     AgentOutput, AgentStatus, Confidence, DataStatus, Decision, Evidence, Signal, Stance,
 )
 
-STRATEGY_VERSION = "quick-1.1.0"
+STRATEGY_VERSION = "quick-1.2.0"
 MODEL_VERSION = "deterministic-a1.0.0"
 
 
@@ -138,6 +138,8 @@ def decide(x: AgentInputs, outputs: tuple[AgentOutput, ...], now: datetime, last
     else:
         if not x.safety.tradable:
             reasons.append("token failed safety checks")
+        if not x.features.warmup_complete:
+            reasons.append("features still warming up: not every feature can be computed yet")
         if "risk" not in ok:
             reasons.append("risk agent gave no output")
         elif ok["risk"].stance is Stance.BEARISH:

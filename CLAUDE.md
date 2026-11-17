@@ -17,10 +17,10 @@ Self-hosted research and **paper-trading** desk for Solana memecoins. Python ≥
 - Unit tests never use the network; real-data checks are run by hand and recorded in `PROJECT_STATUS.md`.
 
 ## Strategy (as decided by the user)
-Quick trades of minutes to a few hours, no sniping of new launches (D15). Entry needs a safe token, no blocking risk and a combined agent score ≥ 0.35. Exits: take profit +5%, trailing stop starting −3% and then 2% below the highest price, 2-hour time limit, early exit when the score drops to 0 (D16, D17). All numbers are unvalidated until backtesting (Stage 8).
+Quick trades of minutes to a few hours, no sniping of new launches (D15). Entry needs a safe token, no blocking risk and a combined agent score ≥ 0.35. Exits: take profit +5%, trailing stop starting −3% and then 2% below the highest price, 2-hour time limit, early exit when the score drops to 0 (D16, D17). No buys during feature warm-up. Daily loss limit 5% per UTC day (D18). Broker rules in D19. All numbers are unvalidated until backtesting (Stage 8).
 
 ## Layout
-`src/scheme1/`: `data/` (GeckoTerminal candles, validation, SQLite store) · `features/` · `safety/` (pool and on-chain checks) · `agents/` (six deterministic agents) · `decision/` (manager, sizing) · `risk/` · `broker/` (protective exits; the paper broker is Stage 7). Each stage has a doc in `docs/STAGE*.md`.
+`src/scheme1/`: `data/` (GeckoTerminal candles, validation, SQLite store) · `features/` · `safety/` (pool and on-chain checks) · `agents/` (six deterministic agents) · `decision/` (manager, sizing) · `risk/` · `broker/` (paper broker, protective exits) · `accounting/` (ledger) · `desk/` (per-candle step, states, audit log, `python -m scheme1.desk.cli`). Each stage has a doc in `docs/STAGE*.md`.
 
 ## Working with the user
 - Explain in simple, short English (the user is B2/C1). Use tables and examples.

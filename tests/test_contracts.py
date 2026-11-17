@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from scheme1.contracts import (
     Candle, Confidence, DataStatus, Decision, DeskState, Evidence, EvidenceKind,
-    FeatureSnapshot, Interval, OrderIntent, OrderStatus, OrderType, RiskCheck,
+    FeatureSnapshot, Interval, Order, OrderIntent, OrderReason, OrderStatus, OrderType, RiskCheck,
     RiskVerdict, Side, Signal, can_transition,
 )
 
@@ -121,3 +121,37 @@ def test_order_transitions():
     assert not can_transition(OrderStatus.NEW, OrderStatus.FILLED)
     for terminal in (OrderStatus.FILLED, OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED):
         assert not any(can_transition(terminal, s) for s in OrderStatus)
+
+
+def order(**kw):
+    base = dict(intent_id="int_1", decision_id="dec_1", symbol="BTC/USDT", side=Side.BUY,
+                order_type=OrderType.MARKET, reason=OrderReason.SIGNAL, quantity=Decimal(10),
+                reference_price=Decimal(100), status=OrderStatus.OPEN, created_at=T0, updated_at=T0,
+                not_before=T0 + timedelta(hours=1), ttl_candles=1)
+    base.update(kw)
+    return Order(**base)
+
+
+def test_order_fill_state_is_consistent():
+    o = order()
+    assert o.remaining == 10 and o.is_open
+    part = order(status=OrderStatus.PARTIALLY_FILLED, filled_quantity=Decimal(4), avg_fill_price=Decimal(101))
+    assert part.remaining == 6 and part.is_open
+    done = order(status=OrderStatus.FILLED, filled_quantity=Decimal(10), avg_fill_price=Decimal(101))
+    assert not done.is_open
+    order(status=OrderStatus.EXPIRED, filled_quantity=Decimal(4), avg_fill_price=Decimal(101))
+
+
+@pytest.mark.parametrize("kw", [
+    dict(filled_quantity=Decimal(11), avg_fill_price=Decimal(1), status=OrderStatus.FILLED),  # overfilled
+    dict(status=OrderStatus.FILLED),                                                       # nothing filled
+    dict(status=OrderStatus.PARTIALLY_FILLED, filled_quantity=Decimal(10), avg_fill_price=Decimal(1)),
+    dict(status=OrderStatus.OPEN, filled_quantity=Decimal(1), avg_fill_price=Decimal(1)),  # fills while OPEN
+    dict(filled_quantity=Decimal(1), status=OrderStatus.PARTIALLY_FILLED),                  # no average price
+    dict(updated_at=T0 - timedelta(seconds=1)),
+    dict(reason=OrderReason.STOP_LOSS),                                                     # a stop can't buy
+    dict(side=Side.SELL, reason=OrderReason.STOP_LOSS, ttl_candles=3),                      # exits never expire
+])
+def test_order_rejects_inconsistent_states(kw):
+    with pytest.raises(ValidationError):
+        order(**kw)

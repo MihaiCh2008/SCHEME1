@@ -97,3 +97,21 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** the user's idea: hold while the price is rising, and exit as soon as it turns down. Exiting on the very first dip was rejected: prices always wiggle, so almost every trade would end within minutes, and the ~1% round-trip cost would eat everything. A 2% trail ignores small dips but exits on a real turn, and once the price is about 2% up, a loss is no longer possible.
 - **Alternatives:** exit on any drop below the entry (rejected, above); a trail based on ATR (adapts to each token; worth testing in Stage 8).
 - **Consequence:** exits happen sooner and more often. 2% may be too tight for very volatile memecoins; backtesting will tell.
+
+## D18. Daily loss limit: 5% per UTC day (2026-11-17)
+- **Choice:** no new buys once equity is more than 5% below the equity at the start of the UTC day (risk check `daily_loss`, config `r1.2.0`). Exits are always allowed. The limit resets by itself at 00:00 UTC.
+- **Why:** the user asked for it after the Stage 6 review. The 20% drawdown pause only acts after a long losing run; a daily limit stops a bad day early.
+- **Alternatives:** 3% (stricter); the user's local midnight instead of UTC (UTC keeps backtests and live runs identical).
+- **Consequence:** after a 5% loss, the rest of the UTC day only manages open positions.
+
+## D19. Paper broker rules (2026-11-17)
+- **Choice:**
+  - Market orders only. Entries fill at the next candle's open + 0.25% slippage, with a 0.25% fee on every fill (a round trip costs ~1%, as the strategy assumes; `DeskConfig` refuses higher broker costs).
+  - All fills in one candle use at most 5% of its USD volume. No volume → no fill.
+  - **An entry lives one candle** and is skipped if the open is more than 2% above the decision price. **An exit never expires.**
+  - The trailing stop, take profit and time limit are run by the broker on every candle from the entry candle on, without going back through `decide()` or the risk engine.
+  - No buys until the feature warm-up is complete (64 candles), strategy `quick-1.2.0`.
+  - The audit log keeps only our own outputs; feature values and agent evidence are kept 24 hours (STAGE3_DATA.md 1a item 8).
+- **Why:** entries that wait would buy later, at prices the decision never saw; the 2% limit stops the bot from chasing a jump, like a DEX slippage setting. Exits must never be dropped or blocked. The first synthetic test bought after 14 candles on RSI alone, which breaks the fail-closed rule.
+- **Alternatives:** resting entries for several candles (rejected: stale decisions); exits through the risk engine (rejected: a data problem could lock in a loss, see the Stage 6 review).
+- **Consequence:** some signals won't fill (no volume, price jumped). Fills ignore our own price impact beyond the 5% cap and 0.25% slippage.

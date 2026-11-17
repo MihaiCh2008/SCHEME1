@@ -22,7 +22,7 @@ from scheme1.data.providers.base import ProviderError
 DEFAULT_RPC_URL = "https://api.mainnet-beta.solana.com"
 TOKEN_PROGRAMS = {
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": "spl-token",
-    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PS1H7nPZo8q1bD": "spl-token-2022",
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb": "spl-token-2022",
 }
 
 # ------------------------------------------------------------------ addresses

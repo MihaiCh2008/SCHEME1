@@ -41,6 +41,7 @@ def test_strong_uptrend_on_a_safe_token_buys():
     (inputs(snap(DOWN)), "buy threshold"),
     (inputs(snap(UP, atr_pct_14=0.09)), "risk agent"),
     (inputs(snap({"bars_available": 5.0}, warmup=False)), "no opinion"),
+    (inputs(snap(UP, warmup=False)), "warming up"),   # every opinion present, but not every feature yet
 ])
 def test_no_buy_without_every_condition(x, reason):
     d = run(x)
@@ -121,7 +122,7 @@ def test_buy_is_sized_from_equity_and_sell_closes_everything():
 
 def ctx(pf=None, **kw):
     base = dict(portfolio=pf or portfolio(), desk_state=DeskState.NORMAL, peak_equity=Decimal(1000),
-                data_status=DataStatus.OK, data_age=timedelta(minutes=1), token_tradable=True,
+                day_start_equity=Decimal(1000), data_status=DataStatus.OK, data_age=timedelta(minutes=1), token_tradable=True,
                 reference_price=PRICE, now=NOW)
     base.update(kw)
     return RiskContext(**base)
@@ -143,7 +144,7 @@ def test_normal_buy_is_approved_with_every_check_listed():
     v = evaluate_risk(buy_intent(), ctx())
     assert v.approved, failed(v)
     assert {c.name for c in v.checks} == {"desk_state", "data_quality", "data_age", "short_sale",
-                                          "duplicate_or_conflict", "drawdown", "cash", "position_size",
+                                          "duplicate_or_conflict", "drawdown", "daily_loss", "cash", "position_size",
                                           "gross_exposure", "concentration", "token_safety", "frequency"}
 
 
@@ -203,3 +204,14 @@ def test_exits_pass_with_bad_or_old_data():
 def test_open_position_must_be_valid():
     with pytest.raises(ValueError):
         OpenPosition(entry_price=Decimal(0), opened_at=NOW, quantity=Decimal(1))
+
+
+def test_daily_loss_limit_blocks_new_buys_but_not_exits():
+    down_6 = portfolio(cash=Decimal(940))  # equity 940: 6% below the 1000 the day started with
+    v = evaluate_risk(buy_intent(down_6), ctx(down_6))
+    assert not v.approved and failed(v) == {"daily_loss"}
+    down_4 = portfolio(cash=Decimal(960))
+    assert evaluate_risk(buy_intent(down_4), ctx(down_4)).approved
+    holding = portfolio(cash=Decimal(800), qty=Decimal(5000), equity=Decimal(900))
+    v = evaluate_risk(sell_intent(), ctx(holding))
+    assert v.approved, failed(v)

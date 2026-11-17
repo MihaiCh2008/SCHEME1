@@ -65,7 +65,8 @@ def main(argv: list[str] | None = None) -> int:
         print("RISK not needed: no order proposed")
         return 0
     verdict = evaluate_risk(intent, RiskContext(
-        portfolio=portfolio, desk_state=DeskState.NORMAL, peak_equity=cash, data_status=result.report.status,
+        portfolio=portfolio, desk_state=DeskState.NORMAL, peak_equity=cash, day_start_equity=cash,
+        data_status=result.report.status,
         data_age=now - snapshot.as_of, token_tradable=safety.tradable, reference_price=last.close, now=now))
     print(f"RISK {'APPROVED' if verdict.approved else 'REJECTED'} {intent.side.value} {intent.quantity}")
     for c in verdict.checks:

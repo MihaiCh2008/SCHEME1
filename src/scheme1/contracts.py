@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.4.0"
+SCHEMA_VERSION = "1.5.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -444,6 +444,68 @@ ORDER_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
 
 def can_transition(old: OrderStatus, new: OrderStatus) -> bool:
     return new in ORDER_TRANSITIONS[old]
+
+
+class OrderReason(StrEnum):
+    """Why an order exists. Only SIGNAL orders come from a ``Decision``. The others are exits the broker
+    runs for an open position, as planned when the entry was decided (D16, D17)."""
+
+    SIGNAL = "signal"
+    STOP_LOSS = "stop_loss"  # initial or trailing stop
+    TAKE_PROFIT = "take_profit"
+    TIME_LIMIT = "time_limit"
+
+
+class Order(Contract):
+    """One simulated order. Frozen: every status change is a new version with the same ``order_id``."""
+
+    order_id: str = Field(default_factory=lambda: new_id("ord"))
+    intent_id: str | None  # None for exits the broker creates itself
+    decision_id: str  # the decision behind it; for broker exits, the decision that opened the position
+    symbol: str
+    side: Side
+    order_type: OrderType
+    reason: OrderReason
+    quantity: Annotated[Decimal, Field(gt=0)]
+    filled_quantity: Quantity = Decimal(0)
+    avg_fill_price: Price | None = None
+    reference_price: Price  # price when the order was decided; the base of the entry slippage tolerance
+    status: OrderStatus
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+    not_before: UTCDateTime  # open time of the first candle that may fill it (no look-ahead)
+    ttl_candles: int | None = Field(default=None, ge=1)  # None: rests until filled or canceled
+    candles_seen: int = Field(default=0, ge=0)
+    detail: str = ""  # why it was rejected, canceled or expired
+
+    @property
+    def remaining(self) -> Decimal:
+        return self.quantity - self.filled_quantity
+
+    @property
+    def is_open(self) -> bool:
+        return self.status in (OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Order:
+        if self.filled_quantity > self.quantity:
+            raise ValueError("filled more than the order quantity")
+        if (self.filled_quantity > 0) != (self.avg_fill_price is not None):
+            raise ValueError("avg_fill_price is set exactly when something filled")
+        if (self.status is OrderStatus.FILLED) != (self.filled_quantity == self.quantity):
+            raise ValueError("an order is FILLED exactly when its whole quantity filled")
+        unfilled_states = (OrderStatus.NEW, OrderStatus.OPEN, OrderStatus.REJECTED)
+        if self.status in unfilled_states and self.filled_quantity > 0:
+            raise ValueError(f"a {self.status.value} order can't have fills")
+        if self.status is OrderStatus.PARTIALLY_FILLED and self.filled_quantity == 0:
+            raise ValueError("PARTIALLY_FILLED needs a fill")
+        if self.updated_at < self.created_at:
+            raise ValueError("updated before it was created")
+        if self.side is Side.BUY and self.reason is not OrderReason.SIGNAL:
+            raise ValueError("only signal orders can buy")
+        if self.side is Side.SELL and self.ttl_candles is not None:
+            raise ValueError("a sell rests until filled or canceled: exits never expire")
+        return self
 
 
 class Fill(Contract):

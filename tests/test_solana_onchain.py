@@ -15,7 +15,7 @@ NOW = datetime(2026, 10, 12, 18, 0, tzinfo=timezone.utc)
 MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"  # real mint address; all amounts below are synthetic
 PDA = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"   # Raydium AMM v4 authority: a program-derived address
 TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PS1H7nPZo8q1bD"
+TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 # Ed25519 public keys generated on 2026-10-12 with the `cryptography` package, so they are on the curve.
 WALLETS = [
@@ -154,6 +154,27 @@ def test_real_bonk_mint_with_holder_lookup_refused():
     assert status["token_extensions_safe"] == SafetyStatus.PASS
     assert status["holder_concentration"] == SafetyStatus.UNVERIFIED
     assert not report.tradable
+
+
+def test_real_token_2022_mint_is_read_and_fails_safety():
+    """Shape of the real getAccountInfo answer for TTWO (a tokenized stock), mainnet, 2026-11-17.
+    Until then the Token-2022 program id in the code was wrong, so every such token read as "not a mint"."""
+    mint_info = {"decimals": 8, "isInitialized": True, "supply": "100000000000",
+                 "mintAuthority": "CwWGWmE3MLyRmFiLkVsZU9oDyWhF3XtULciqTjj2bNkv",
+                 "freezeAuthority": "2cVYpagTt7ZGc3mmTXBa7fAznUtx5DUu6aCq8uVDaf4a",
+                 "extensions": [{"extension": e, "state": {}} for e in (
+                     "metadataPointer", "permanentDelegate", "defaultAccountState", "pausableConfig",
+                     "confidentialTransferMint", "transferHook", "scaledUiAmountConfig", "tokenMetadata")]}
+    account = rpc_ok({"context": {"slot": 1}, "value": {
+        "data": {"parsed": {"info": mint_info, "type": "mint"}, "program": "spl-token-2022", "space": 1000},
+        "executable": False, "lamports": 1, "owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"}})
+    s, _ = rpc(account, largest([]))
+    info = s.token_info(MINT)
+    assert info.token_program == "spl-token-2022" and "permanentDelegate" in info.extensions
+    report = evaluate(POOL_SYM, pool_snaps(), NOW, onchain=info)
+    status = {c.name: c.status for c in report.checks}
+    assert status["mint_authority_revoked"] is status["freeze_authority_revoked"] is SafetyStatus.FAIL
+    assert status["token_extensions_safe"] is SafetyStatus.FAIL and not report.tradable
 
 
 def test_rpc_url_from_environment(monkeypatch):

@@ -1,6 +1,6 @@
 # SCHEME1 Architecture
 
-**Status:** Stage 2 proposal. The contracts in `src/scheme1/contracts.py` are implemented and tested. The other modules are not built yet.
+**Status:** written in Stage 2; Stages 3–7 are built and tested (see PROJECT_STATUS.md). Not built yet: backtest, API and dashboard. Where a stage changed the plan, the stage doc and DECISIONS.md say so.
 
 **Hard rule:** simulation only. There is no exchange-credential setting, no order-submission adapter and no withdrawal code anywhere in the system. Market data comes from public endpoints only.
 
@@ -38,9 +38,9 @@ The **backtest** runs the same Validator → Features → Agents → Decision �
 | `decision` | snapshot + agent outputs | `Decision` (research only, authorizes nothing) | non-OK data forces `HOLD` (enforced in the contract) |
 | `authorize` | `Decision` + portfolio | `OrderIntent` or nothing | no intent for HOLD or when sizing rounds to zero |
 | `risk` | `OrderIntent` + portfolio + desk state + data status | `RiskVerdict` with every check listed | always produces a verdict; any failed check rejects |
-| `broker` | approved `OrderIntent`, later candles | `Order` status changes, `Fill`s | `REJECTED`, `EXPIRED`, `CANCELED` |
-| `accounting` | fills, marks | `PortfolioSnapshot` | invariant violation raises and halts the desk (`EMERGENCY_STOP`) |
-| `storage` | every record above | SQLite rows + hash-chained audit log | transaction rollback; startup integrity check |
+| `broker` | approved `OrderIntent`, later candles | `Order` versions, `Fill`s; runs the protective and time-limit exits itself (D19) | `REJECTED`, `EXPIRED`, `CANCELED` |
+| `accounting` | fills, marks | `PortfolioSnapshot`, trade list | invariant violation raises and halts the desk (`EMERGENCY_STOP`) |
+| `desk` (storage, states, step) | one closed candle + its data, features and safety report | every record above in a hash-chained audit log, one transaction per step | transaction rollback; startup integrity check |
 | `backtest` | dataset id, config, period | run record, trades, equity curve, metrics | `insufficient_sample` reported, never a made-up number |
 | `api` | HTTP | JSON from persisted records only | 503 with reason when a dependency is down |
 | `ui` | API | pages | explicit empty / stale / loading / error states |
@@ -55,6 +55,7 @@ Every record carries versions: `SCHEMA_VERSION`, `feature_set_version`, `strateg
 - **Limit buy:** fills in the first candle *k > t* whose low is **strictly below** the limit (touching the limit is not enough). Fill price = min(limit, open_k), so a gap down fills at the open. Maker fee, no slippage. Limit sells mirror this.
 - **Partial fills:** each candle can fill at most `participation_rate × candle volume` (default 5%). The remainder rests until filled, canceled or expired after `ttl_candles`.
 - **No liquidity data** (zero volume): nothing fills in that candle.
+- **Entries (Stage 7, D19):** a buy lives one candle and is skipped if the open is more than 2% above the decision price. Exits never expire. The trailing stop and take profit are checked inside each candle from the entry candle on (D16, D17), and the time limit at each open.
 - **Spot, long-only** in v1. SELL closes or reduces a long. It can never go short, and the risk engine rejects any sell larger than the position.
 
 ## 4. Risk engine

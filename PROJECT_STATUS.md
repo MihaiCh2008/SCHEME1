@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-11-17 (Stage 6 safety review)_
+_Last updated: 2026-11-17 (Stage 7)_
 
 | # | Stage | Status |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ _Last updated: 2026-11-17 (Stage 6 safety review)_
 | 4b | On-chain token checks | **Verified live, all 4 checks run** (Helius free plan). BONK fails holder concentration and stays blocked by choice (D13) |
 | 5 | Research agents | **Phase 1 done** (deterministic): [docs/STAGE5_AGENTS.md](docs/STAGE5_AGENTS.md); code in `src/scheme1/agents/`. Phase 2 (optional LLM) not started |
 | 6 | Decision and risk engines | **Done**: [docs/STAGE6_DECISION_RISK.md](docs/STAGE6_DECISION_RISK.md); code in `src/scheme1/decision/` and `src/scheme1/risk/`. Quick-trade strategy with take profit, stop loss and time limit (D15); trailing stop checked inside each candle (D16, D17). Safety review 2026-11-17: exits no longer blocked by bad data |
-| 7 | Paper execution and accounting | Not started |
+| 7 | Paper execution and accounting | **Done**: [docs/STAGE7_PAPER.md](docs/STAGE7_PAPER.md); code in `src/scheme1/broker/`, `src/scheme1/accounting/`, `src/scheme1/desk/`. Paper broker, ledger, desk states, hash-chained audit log, 5% daily loss limit (D18, D19). Run it with `python -m scheme1.desk.cli run --pool <address>` |
 | 8 | Backtesting | Not started |
 | 9 | End-to-end proof | Not started |
 | 10 | Performance and reliability | Not started |
@@ -26,11 +26,13 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-10-15, Python 3.13.16: **173 passed, 0 failed, 0 skipped** (14 contract, 44 data-pipeline, 12 feature, 15 safety, 23 on-chain, 14 agent, 33 decision and risk, 18 protective-exit tests). No test uses the network.
+Result on 2026-10-15, Python 3.13.16: **231 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 24 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 16 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
 Live check on 2026-10-15: `python -m scheme1.agents.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ran all six agents on BONK/SOL 5m candles. All outputs OK and every citation valid; market and technical bearish, risk −1 (holder concentration fails, D13). Decision: HOLD; no order proposed.
+
+Live check on 2026-11-17: `python -m scheme1.desk.cli run --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9 --steps 1` ran the full paper desk on BONK/SOL: HOLD (token failed safety checks), equity 1000.00. Safety checks on WIF, POPCAT, Fartcoin and MEW pools: all blocked by the holder rule (Fartcoin closest: top 10 wallets 31.3%). Found and fixed a wrong Token-2022 program id (see docs/STAGE7_PAPER.md section 7).
 
 ## Missing access and limitations
 
@@ -58,7 +60,11 @@ Target is now **Solana memecoins, paper trading only** (see DECISIONS.md D9). St
 
 Live trading through a dedicated bot wallet is documented as an idea with entry gates in [docs/future/LIVE_TRADING.md](docs/future/LIVE_TRADING.md). It is out of scope until those gates are met.
 
+## Open question for the user
+
+**With the strict holder rule (D13), none of the well-known memecoins tested can be traded** (WIF 45.5%, POPCAT 39.5%, Fartcoin 31.3%, MEW 65.4%, BONK 38.4% for the top 10 wallets; limit 30%). Brand-new pools are blocked by the 24-hour age rule on purpose. So the paper desk will mostly say HOLD. Options: keep it; (b) a reviewed list of exchange wallets excluded like pool vaults; (c) a higher top-10 limit, such as 40%.
+
 ## Next stage
 
-1. **Stage 7: paper execution and accounting.** Read the to-do list in docs/STAGE6_DECISION_RISK.md section 7 first. Paper broker (using the protective exits in `src/scheme1/broker/protective.py`) with the fill rules of ARCHITECTURE.md section 3 (next-candle open, slippage, fees, partial fills), portfolio accounting, the desk state machine, and the SQLite audit log.
+1. **Stage 8: backtesting.** Feed stored or fetched history through the same `PaperDesk.on_candle` step, one closed candle at a time, and report trades, equity curve and metrics (with `insufficient_sample` when there are too few trades). Open problem: there is no historical safety data, so a backtest must either assume a fixed safety report or skip that check, and say so.
 2. Later, optional: Stage 5 phase 2 (an LLM agent behind the same contract). Needs a provider decision first.

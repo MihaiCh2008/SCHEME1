@@ -97,7 +97,7 @@ A strict re-read of `decision/`, `risk/` and `broker/protective.py` before Stage
 - **Exits were blocked by bad or old data.** `data_quality` and `data_age` rejected a SELL when the data was degraded or a few minutes old, so a data problem could lock in a loss. Exits now pass both checks (an exit fills at a later, real candle anyway). New buys still need good, fresh data. Risk config `r1.1.0`.
 - `OpenPosition` now refuses a zero entry price or quantity (it would have crashed the exit maths).
 
-**For Stage 7 (the broker must handle these)**
+**For Stage 7 (the broker must handle these)**: all handled in Stage 7, see docs/STAGE7_PAPER.md. The daily loss limit was added too (D18).
 - The `Decision` contract forces HOLD when data is not OK, so `decide()` can't send the time-limit exit in that case. The broker must run the **protective exits and the time limit itself**, on every candle, without going through `decide()`.
 - The protective exits must also check the **entry candle itself** (the buy fills at its open; the price can fall later in the same candle).
 - **Order size vs pool size:** a buy is sized from equity only. In a thin pool, a big order moves the price. The broker's participation limit (5% of candle volume) covers part of this.

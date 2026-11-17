@@ -4,8 +4,8 @@ It runs outside the agents, reads its limits from ``RiskConfig`` (agents can't c
 every check every time and returns them all, passes included. Any failed check rejects.
 
 A SELL that only reduces a held position (an exit) skips the checks that only make sense for new
-risk (cash, size, exposure, token safety, frequency), passes data-quality, data-age and drawdown
-checks, and is allowed while the desk is DEGRADED or PAUSED, so a stop loss is never locked in.
+risk (cash, size, exposure, token safety, frequency), passes data-quality, data-age, drawdown and
+daily-loss checks, and is allowed while the desk is DEGRADED or PAUSED, so a stop loss is never locked in.
 EMERGENCY_STOP rejects everything. ``short_sale`` and ``duplicate_or_conflict`` still apply to exits.
 
 Not built yet: ``correlated_exposure`` (needs rolling correlations between held tokens).
@@ -21,7 +21,7 @@ from scheme1.contracts import (
     DataStatus, DeskState, OrderIntent, PortfolioSnapshot, RiskCheck, RiskVerdict, Side,
 )
 
-RISK_CONFIG_VERSION = "r1.1.0"
+RISK_CONFIG_VERSION = "r1.2.0"
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,7 @@ class RiskConfig:
     max_gross_exposure_pct: Decimal = Decimal(50)  # all positions together
     max_asset_pct: Decimal = Decimal(15)  # largest single asset after the order
     max_drawdown_pct: Decimal = Decimal(20)  # from peak equity
+    max_daily_loss_pct: Decimal = Decimal(5)  # from equity at the start of the UTC day (D18)
     max_orders_per_day: int = 20
     cooldown: timedelta = timedelta(minutes=15)  # between orders on one symbol
     fee_pct: Decimal = Decimal("0.25")
@@ -43,6 +44,7 @@ class RiskContext:
     portfolio: PortfolioSnapshot
     desk_state: DeskState
     peak_equity: Decimal
+    day_start_equity: Decimal  # equity when the current UTC day began
     data_status: DataStatus
     data_age: timedelta
     token_tradable: bool
@@ -89,6 +91,9 @@ def evaluate_risk(intent: OrderIntent, ctx: RiskContext, cfg: RiskConfig = RiskC
     drawdown = pct(ctx.peak_equity - pf.equity, ctx.peak_equity) if ctx.peak_equity > 0 else Decimal(0)
     checks.append(_check("drawdown", is_exit or drawdown <= cfg.max_drawdown_pct, f"{drawdown:.2f}%",
                          f"<= {cfg.max_drawdown_pct}% (exits always allowed)"))
+    daily = pct(ctx.day_start_equity - pf.equity, ctx.day_start_equity)
+    checks.append(_check("daily_loss", is_exit or daily <= cfg.max_daily_loss_pct, f"{daily:.2f}% lost today",
+                         f"<= {cfg.max_daily_loss_pct}% since the UTC day began (exits always allowed)"))
 
     if not is_exit:
         cost = intent.quantity * ctx.reference_price * (1 + (cfg.fee_pct + cfg.slippage_buffer_pct) / 100)
