@@ -55,7 +55,7 @@ Every record carries versions: `SCHEMA_VERSION`, `feature_set_version`, `strateg
 - **Limit buy:** fills in the first candle *k > t* whose low is **strictly below** the limit (touching the limit is not enough). Fill price = min(limit, open_k), so a gap down fills at the open. Maker fee, no slippage. Limit sells mirror this.
 - **Partial fills:** each candle can fill at most `participation_rate × candle volume` (default 5%). The remainder rests until filled, canceled or expired after `ttl_candles`.
 - **No liquidity data** (zero volume): nothing fills in that candle.
-- **Entries (Stage 7, D19):** a buy lives one candle and is skipped if the open is more than 2% above the decision price. Exits never expire. The trailing stop and take profit are checked inside each candle from the entry candle on (D16, D17), and the time limit at each open.
+- **Entries (Stage 7, D19, D20):** a buy lives one candle. It is not skipped after a price jump (FOMO entries); a jump limit exists only as a test option. Exits never expire. The trailing stop and take profit are checked inside each candle from the entry candle on (D16, D17), and the time limit at each open.
 - **Spot, long-only** in v1. SELL closes or reduces a long. It can never go short, and the risk engine rejects any sell larger than the position.
 
 ## 4. Risk engine

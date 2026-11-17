@@ -23,7 +23,7 @@ Fill rules (ARCHITECTURE.md section 3, plus the choices in DECISIONS.md D19):
 | Fee | 0.25% of every fill (DEX pool fee). A round trip costs about 1%, as the strategy assumes |
 | Volume limit | all our fills in one candle together ≤ 5% of the candle's USD volume |
 | No volume | a candle with no trades fills nothing |
-| Entry price protection | a buy is skipped if the next open is more than 2% above the decision price (like a DEX slippage limit) |
+| Entry price protection | **off** (D20): the strategy buys on FOMO, so a buy goes through even after a price jump. It can be switched on for tests (then a buy is skipped when the open is more than X% above the decision price) |
 | Entry lifetime | 1 candle: what can't fill in the first candle is dropped (EXPIRED) |
 | Exit lifetime | forever: a sell rests until it's filled or there's nothing left to sell |
 | Cash | a buy never spends more than the cash there is |
@@ -78,12 +78,12 @@ python -m scheme1.desk.cli pause --reason "..." | resume | kill --reason "..." |
 
 ## 6. Checks
 
-New tests (231 in total, all passing, no network):
+New tests (232 in total after D20, all passing, no network):
 
 | File | Tests | What |
 | --- | --- | --- |
 | `test_ledger.py` | 7 | fees, partial sells, invariants, exact rebuild from fills, trade report |
-| `test_paper_broker.py` | 16 | next-open fills, volume cap, price-jump protection, cash cap, stop in the entry candle, trailing then take profit, time limit, leftover exits, desk states, kill switch, restart of the trailing stop |
+| `test_paper_broker.py` | 17 | next-open fills, volume cap, price-jump protection, cash cap, stop in the entry candle, trailing then take profit, time limit, leftover exits, desk states, kill switch, restart of the trailing stop |
 | `test_desk_store.py` | 9 | order, rollback on failure, append-only, tampering (edit, delete, broken link), 24 h purge |
 | `test_desk.py` | 12 | a full trade end to end; a restart mid-trade gives exactly the same result; repeated candle; bad data; kill and reset; tampering and mismatched books stop the desk; drawdown pause; lost state; retention; exits while paused |
 | `test_desk_cli.py` | 2 | the live loop (newest candle first, catch-up without old decisions); status and controls |

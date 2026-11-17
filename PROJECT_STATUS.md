@@ -26,7 +26,7 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-10-15, Python 3.13.16: **231 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 24 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 16 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
+Result on 2026-11-17, Python 3.13.16: **232 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 24 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 17 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
@@ -59,6 +59,14 @@ Target is now **Solana memecoins, paper trading only** (see DECISIONS.md D9). St
 ## Future (not scheduled)
 
 Live trading through a dedicated bot wallet is documented as an idea with entry gates in [docs/future/LIVE_TRADING.md](docs/future/LIVE_TRADING.md). It is out of scope until those gates are met.
+
+## New direction from the user (2026-11-17), waiting for answers
+
+Two strategies with separate money (proposed split 50/50, then shifting slowly to the better one after 30 trades each, each keeping at least 20%):
+- **A. Bot trades on FOMO**: buy when a coin suddenly pumps with big volume (no price-jump limit, D20).
+- **B. Copy traders** the user follows on the pump.fun app: when one of their wallets buys, the bot buys too (smaller size, exit when the trader sells or on a wider safety stop).
+
+Waiting for: the traders' wallet addresses; whether new pump.fun coins (< 24 h) are allowed for copy trades (changes D15 and the 24-hour pool-age rule); the holder rule for A (option b or c below).
 
 ## Open question for the user
 

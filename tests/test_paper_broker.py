@@ -90,12 +90,19 @@ def test_volume_cap_gives_a_partial_fill_and_the_rest_of_the_entry_expires():
     assert "first candle" in final.detail and d.broker.open_orders() == []
 
 
-@pytest.mark.parametrize("candle,detail", [
-    (c(1, 103), "3.00% above the decision price"),   # chasing a jump is not allowed
-    (c(1, 100, vol="0"), "no trades"),
-])
-def test_entry_is_dropped_when_it_cannot_fill_in_its_first_candle(candle, detail):
+def test_fomo_buy_fills_even_after_a_price_jump():
     d = Desk()
+    d.buy(qty=1, ref=100)
+    d.run(c(1, 110))                                  # pumped 10% since the decision: still buys (D20)
+    assert d.fills[0].reference_price == 110 and d.fills[0].price == D("110.275")
+
+
+@pytest.mark.parametrize("config,candle,detail", [
+    (BrokerConfig(entry_tolerance_pct=D(2)), c(1, 103), "3.00% above the decision price"),  # optional limit
+    (BrokerConfig(), c(1, 100, vol="0"), "no trades"),
+])
+def test_entry_is_dropped_when_it_cannot_fill_in_its_first_candle(config, candle, detail):
+    d = Desk(config=config)
     order = d.buy(qty=1, ref=100)
     d.run(candle)
     final = d.last(order.order_id)

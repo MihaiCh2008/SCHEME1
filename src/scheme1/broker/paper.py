@@ -6,8 +6,9 @@
    and nothing trades.
 2. Orders whose ``not_before`` has come fill at the candle's **open**. Nothing is filled from a candle that
    opened before the order existed, so there is no look-ahead.
-   - BUY at open × (1 + slippage), skipped when the open is more than ``entry_tolerance_pct`` above the
-     price the order was decided at (like a DEX slippage limit), and never for more than the cash allows.
+   - BUY at open × (1 + slippage), never for more than the cash allows. A price jump since the decision
+     doesn't stop it: the strategy buys on FOMO (D20). ``entry_tolerance_pct`` can still be set for a test,
+     then a buy is skipped when the open is that far above the decision price (like a DEX slippage limit).
    - SELL at open × (1 − slippage), never more than is held.
 3. **Time limit:** a position held for ``max_hold`` or longer at the open is sold from the open.
 4. **Protective exits** (trailing stop, take profit; ``scheme1.broker.protective``) are checked from the
@@ -45,7 +46,7 @@ class BrokerConfig:
     fee_pct: Decimal = Decimal("0.25")  # DEX pool fee, paid on every fill
     slippage_pct: Decimal = Decimal("0.25")  # the price moves against every market fill
     participation_pct: Decimal = Decimal(5)  # share of a candle's USD volume we may trade
-    entry_tolerance_pct: Decimal = Decimal(2)  # skip a buy if the open is this far above the decision price
+    entry_tolerance_pct: Decimal | None = None  # off (D20); set it to skip buys after a jump this big
     entry_ttl_candles: int = 1
     quantity_step: Decimal = Decimal("0.000001")
 
@@ -213,10 +214,10 @@ class PaperBroker:
         elif candle.volume == 0:
             detail = "no trades in the candle"
         elif order.side is Side.BUY:
-            limit = order.reference_price * (1 + cfg.entry_tolerance_pct / 100)
-            if candle.open > limit:
+            tolerance = cfg.entry_tolerance_pct
+            if tolerance is not None and candle.open > order.reference_price * (1 + tolerance / 100):
                 move = (candle.open / order.reference_price - 1) * 100
-                detail = f"price opened {move:.2f}% above the decision price (limit {cfg.entry_tolerance_pct}%)"
+                detail = f"price opened {move:.2f}% above the decision price (limit {tolerance}%)"
             else:
                 price = candle.open * (1 + cfg.slippage_pct / 100)
                 qty = min(self._cap(order.remaining, state.budget, candle.open), self._affordable(state.cash, price))

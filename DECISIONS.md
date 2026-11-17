@@ -115,3 +115,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** entries that wait would buy later, at prices the decision never saw; the 2% limit stops the bot from chasing a jump, like a DEX slippage setting. Exits must never be dropped or blocked. The first synthetic test bought after 14 candles on RSI alone, which breaks the fail-closed rule.
 - **Alternatives:** resting entries for several candles (rejected: stale decisions); exits through the risk engine (rejected: a data problem could lock in a loss, see the Stage 6 review).
 - **Consequence:** some signals won't fill (no volume, price jumped). Fills ignore our own price impact beyond the 5% cap and 0.25% slippage.
+
+## D20. FOMO entries: no price-jump limit on buys (2026-11-17)
+- **Choice:** a buy fills at the next open even if the price jumped since the decision. `BrokerConfig.entry_tolerance_pct` is now off (`None`) by default; it stays as an option so Stage 8 can compare 2%, 5% and off. This replaces the 2% limit in D19.
+- **Why:** the user wants the bot to trade on FOMO: buy into a sudden pump with big volume. A 2% limit would skip exactly those entries.
+- **Alternatives:** 5% limit (proposed; the user chose no limit).
+- **Consequence:** the bot can buy near the top of a spike. The exits (trailing stop, take profit, time limit) are what limits the damage.
