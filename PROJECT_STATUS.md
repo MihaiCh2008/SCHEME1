@@ -66,7 +66,7 @@ Two strategies with separate money (proposed split 50/50, then shifting slowly t
 - **A. Bot trades on FOMO**: buy when a coin suddenly pumps with big volume (no price-jump limit, D20).
 - **B. Copy traders** the user follows on the pump.fun app: when one of their wallets buys, the bot buys too (smaller size, exit when the trader sells or on a wider safety stop).
 
-Waiting for: the traders' wallet addresses; whether new pump.fun coins (< 24 h) are allowed for copy trades (changes D15 and the 24-hour pool-age rule). The holder rule is decided (b, D21).
+Decided: holder rule b (D21); new pump.fun coins allowed for copy trades only (D22). Waiting for: the traders' Solana wallet addresses (from the pump.fun app profiles).
 
 ## Holder rule (decided 2026-11-17)
 

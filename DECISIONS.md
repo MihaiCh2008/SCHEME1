@@ -127,3 +127,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** the user chose option b. With the strict rule, none of the five big memecoins tested could be traded; their largest "wallets" include exchange hot wallets that hold coins for many customers. Live 2026-11-17: Fartcoin (Gate.io 5.6% and MEXC 1.2% excluded → top 10 wallets 27.3%) now passes; BONK, WIF, POPCAT and MEW still fail on non-exchange wallets.
 - **Alternatives:** (a) keep the strict rule; (c) raise the top-10 limit to 40%. **The user asked to be reminded to test (c) against (b) in Stage 8 and keep whichever makes more money.**
 - **Consequence:** an address wrongly labeled as an exchange would let a whale through, so addresses are only added with a source. Exchanges missing from Dune's list (for example some Korean or US broker wallets) still count as whales, which is the safe side.
+
+## D22. Copy trades may buy new pump.fun coins (2026-11-17)
+- **Choice:** for copy trades (strategy B: buying when a trader the user follows buys), coins younger than 24 hours are allowed. The 24-hour pool-age rule (D12) and the "no new launches" part of D15 don't apply to copy trades. The bot's own FOMO trades (strategy A) keep both rules. The other safety checks for copy trades (mint and freeze authority, token extensions, holders, liquidity) will be set when B is built, and asked about where they change a rule.
+- **Why:** the user confirmed it ("it's ok"). The traders they follow on the pump.fun app mostly buy new coins, so with the 24-hour rule copy trading would never trigger.
+- **Alternatives:** keep the 24-hour rule for copy trades too (rejected by the user).
+- **Consequence:** copy trades will meet many more rugs and scams. Paper trading measures whether following these traders makes money before anything else is considered.
