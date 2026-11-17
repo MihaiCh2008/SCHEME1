@@ -7,7 +7,8 @@ import pytest
 from scheme1.contracts import HolderBalance, PoolSnapshot, SafetyStatus, TokenOnchainInfo
 from scheme1.data.http import HttpResponse, PacedClient, RetryPolicy
 from scheme1.data.providers.base import ProviderError
-from scheme1.safety.checks import ONCHAIN_CHECKS, evaluate
+from scheme1.safety.checks import ONCHAIN_CHECKS, SafetyConfig, evaluate
+from scheme1.safety.exchange_wallets import EXCHANGE_WALLETS
 from scheme1.safety.solana import SolanaRpc, b58decode, is_on_curve
 from data_helpers import FakeClock, ScriptedTransport
 
@@ -146,7 +147,7 @@ def test_real_bonk_mint_with_holder_lookup_refused():
     info = s.token_info(MINT)
     assert info.token_program == "spl-token" and info.decimals == 5 and info.supply == 8799435945064921657
     assert info.mint_authority is None and info.freeze_authority is None and info.extensions == ()
-    assert info.holders is None and info.holders_error == "holder lookup failed: rate_limited"
+    assert info.holders is None and info.holders_error.startswith("holder lookup failed: rate_limited (getTokenLargestAccounts")
 
     report = evaluate(POOL_SYM, pool_snaps(), NOW, onchain=info)
     status = {c.name: c.status for c in report.checks}
@@ -243,6 +244,28 @@ def test_whale_wallet_fails_but_pool_vault_does_not():
     vault = token(holders=[(PDA, 900_000)] + [(w, 1_000) for w in WALLETS[:10]])
     assert check(evaluate(POOL_SYM, pool_snaps(), NOW, onchain=vault), "holder_concentration").status \
         is SafetyStatus.PASS
+
+
+BINANCE = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"  # "Binance 2" in the Dune list
+
+
+def test_exchange_wallets_are_left_out_of_the_holder_check():
+    assert is_on_curve(BINANCE)  # a normal wallet: only the exchange list can tell it apart from a whale
+    big_exchange = token(holders=[(BINANCE, 150_000)] + [(w, 1_000) for w in WALLETS[:10]])
+    result = check(evaluate(POOL_SYM, pool_snaps(), NOW, onchain=big_exchange), "holder_concentration")
+    assert result.status is SafetyStatus.PASS and "exchanges (excluded) 15.00% (Binance 2)" in result.observed
+    no_list = SafetyConfig(exchange_wallets=frozenset())
+    result = check(evaluate(POOL_SYM, pool_snaps(), NOW, no_list, onchain=big_exchange), "holder_concentration")
+    assert result.status is SafetyStatus.FAIL  # without the list, the same wallet counts as a whale
+
+
+def test_exchange_list_is_valid_and_keeps_its_license():
+    import pathlib
+    from scheme1.safety import exchange_wallets
+    assert len(EXCHANGE_WALLETS) >= 100
+    assert all(len(b58decode(a)) == 32 and name for a, name in EXCHANGE_WALLETS.items())
+    license_file = pathlib.Path(exchange_wallets.__file__).with_name("LICENSE-dune-spellbook.txt")
+    assert license_file.read_text().startswith("Business Source License 1.1")
 
 
 def test_top10_is_an_upper_bound_when_the_list_is_cut_off():

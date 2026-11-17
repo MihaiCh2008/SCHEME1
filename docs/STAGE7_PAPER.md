@@ -105,7 +105,7 @@ New tests (232 in total after D20, all passing, no network):
 | BONK/SOL | top 10 38.4%, largest 8.8% | blocked |
 | TTWO/SOL (tokenized stock) | top 10 12.8% | blocked: mint and freeze authority kept, 5 dangerous extensions |
 
-So with the strict holder rule (D13), **none** of these can be traded. The pools that are hours old are blocked by the 24-hour age rule on purpose. This is a decision for the user (see PROJECT_STATUS.md).
+So with the strict holder rule (D13), **none** of these can be traded. **Update (D21, option b):** with known exchange wallets left out, Fartcoin/SOL passes (top 10 wallets 27.3% after leaving out Gate.io 5.6% and MEXC 1.2%); the others still fail. First desk pass on it: agents bullish, but HOLD because nobody had traded in the pool for 15 minutes (stale data). The pools that are hours old are blocked by the 24-hour age rule on purpose. This is a decision for the user (see PROJECT_STATUS.md).
 
 **Bug found and fixed:** the Token-2022 program id in `scheme1.safety.solana` was wrong since Stage 4b (`…1PS1H7nPZo8q1bD` instead of `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`). Every Token-2022 token read as "not a mint" and was blocked with the misleading reason "RPC unavailable". It never let an unsafe token through. The test now uses the shape of the real TTWO response.
 

@@ -113,7 +113,7 @@ class SolanaRpc:
                 if err.reason == "bad_payload":
                     raise
                 # The mint checks are still valid; only holder_concentration stays unverified.
-                holders_error = f"holder lookup failed: {err.reason}"
+                holders_error = f"holder lookup failed: {err.reason} ({err.detail[:120]})"  # detail never has the URL
             else:
                 addresses = [a["address"] for a in largest]
                 amounts = {a["address"]: int(a["amount"]) for a in largest}

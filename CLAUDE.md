@@ -9,7 +9,7 @@ Self-hosted research and **paper-trading** desk for Solana memecoins. Python ≥
 
 ## Hard rules
 - **Simulation only.** No private keys, wallet signing, exchange credentials, order submission or withdrawal code. Live trading is out of scope (`docs/future/LIVE_TRADING.md`, DECISIONS.md D9).
-- **Fail closed.** Missing or untrusted data means `unverified`/`HOLD`, never a guess. A token is tradable only if every safety check passes (D12, D13).
+- **Fail closed.** Missing or untrusted data means `unverified`/`HOLD`, never a guess. A token is tradable only if every safety check passes (D12, D13). The holder check leaves out known exchange wallets (D21, list in `src/scheme1/safety/exchange_wallets.py`, keep its license file).
 - **No look-ahead.** Only closed candles; a decision at candle *t* fills at the open of *t+1* or later (`docs/ARCHITECTURE.md` section 3).
 - **Money is `Decimal`**, statistics are `float` (D5). Contracts in `src/scheme1/contracts.py` are frozen; changing a persisted field bumps `SCHEMA_VERSION`.
 - **Provider terms:** GeckoTerminal data is kept at most 24 hours and shown with "Powered by CoinGecko" (D11). Don't commit provider responses.

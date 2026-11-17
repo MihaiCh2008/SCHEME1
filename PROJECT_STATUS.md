@@ -26,7 +26,7 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-11-17, Python 3.13.16: **232 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 24 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 17 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
+Result on 2026-11-17, Python 3.13.16: **234 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 26 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 17 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
@@ -66,13 +66,16 @@ Two strategies with separate money (proposed split 50/50, then shifting slowly t
 - **A. Bot trades on FOMO**: buy when a coin suddenly pumps with big volume (no price-jump limit, D20).
 - **B. Copy traders** the user follows on the pump.fun app: when one of their wallets buys, the bot buys too (smaller size, exit when the trader sells or on a wider safety stop).
 
-Waiting for: the traders' wallet addresses; whether new pump.fun coins (< 24 h) are allowed for copy trades (changes D15 and the 24-hour pool-age rule); the holder rule for A (option b or c below).
+Waiting for: the traders' wallet addresses; whether new pump.fun coins (< 24 h) are allowed for copy trades (changes D15 and the 24-hour pool-age rule). The holder rule is decided (b, D21).
 
-## Open question for the user
+## Holder rule (decided 2026-11-17)
 
-**With the strict holder rule (D13), none of the well-known memecoins tested can be traded** (WIF 45.5%, POPCAT 39.5%, Fartcoin 31.3%, MEW 65.4%, BONK 38.4% for the top 10 wallets; limit 30%). Brand-new pools are blocked by the 24-hour age rule on purpose. So the paper desk will mostly say HOLD. Options: keep it; (b) a reviewed list of exchange wallets excluded like pool vaults; (c) a higher top-10 limit, such as 40%.
+Option **b** (D21): known exchange wallets are left out of the holder check. Live result: **Fartcoin/SOL is now tradable** (top 10 wallets 27.3% after leaving out Gate.io and MEXC). BONK, WIF, POPCAT and MEW still fail on non-exchange wallets. In the first live desk pass on Fartcoin the agents were bullish (market +0.95), but the bot held because nobody had traded in that pool for 15 minutes (data stale): correct, no fresh price.
+
+**REMINDER for the user (asked 2026-11-17): in Stage 8, test option c (top-10 limit 40%) against option b and keep whichever makes more money.**
 
 ## Next stage
 
-1. **Stage 8: backtesting.** Feed stored or fetched history through the same `PaperDesk.on_candle` step, one closed candle at a time, and report trades, equity curve and metrics (with `insufficient_sample` when there are too few trades). Open problem: there is no historical safety data, so a backtest must either assume a fixed safety report or skip that check, and say so.
+1. **Stage 8: backtesting.** Must include the user's reminder: compare holder rule b (D21) with c (40%). Also compare the entry price-jump limit off / 2% / 5% (D20).
+    Feed stored or fetched history through the same `PaperDesk.on_candle` step, one closed candle at a time, and report trades, equity curve and metrics (with `insufficient_sample` when there are too few trades). Open problem: there is no historical safety data, so a backtest must either assume a fixed safety report or skip that check, and say so.
 2. Later, optional: Stage 5 phase 2 (an LLM agent behind the same contract). Needs a provider decision first.

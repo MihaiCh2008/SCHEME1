@@ -121,3 +121,9 @@ Each entry records the choice, the alternatives considered, and why. Evidence fo
 - **Why:** the user wants the bot to trade on FOMO: buy into a sudden pump with big volume. A 2% limit would skip exactly those entries.
 - **Alternatives:** 5% limit (proposed; the user chose no limit).
 - **Consequence:** the bot can buy near the top of a spike. The exits (trailing stop, take profit, time limit) are what limits the damage.
+
+## D21. Holder check leaves out known exchange wallets (option b) (2026-11-17)
+- **Choice:** wallets labeled as centralized exchanges are excluded from holder concentration, like pool vaults. The list is `scheme1.safety.exchange_wallets`: 112 Solana addresses from Dune Analytics Spellbook (commit 475a7e1), kept under Spellbook's Business Source License 1.1 (license file next to it). Limits unchanged: largest wallet ≤ 10%, top 10 wallets ≤ 30%. Safety config `s1.2.0`.
+- **Why:** the user chose option b. With the strict rule, none of the five big memecoins tested could be traded; their largest "wallets" include exchange hot wallets that hold coins for many customers. Live 2026-11-17: Fartcoin (Gate.io 5.6% and MEXC 1.2% excluded → top 10 wallets 27.3%) now passes; BONK, WIF, POPCAT and MEW still fail on non-exchange wallets.
+- **Alternatives:** (a) keep the strict rule; (c) raise the top-10 limit to 40%. **The user asked to be reminded to test (c) against (b) in Stage 8 and keep whichever makes more money.**
+- **Consequence:** an address wrongly labeled as an exchange would let a whale through, so addresses are only added with a source. Exchanges missing from Dune's list (for example some Korean or US broker wallets) still count as whales, which is the safe side.

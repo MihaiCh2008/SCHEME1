@@ -22,3 +22,6 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra --strict-markers"
+
+[tool.setuptools.package-data]
+"scheme1.safety" = ["LICENSE-dune-spellbook.txt"]

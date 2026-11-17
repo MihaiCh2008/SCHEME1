@@ -12,9 +12,10 @@ On-chain checks (from ``TokenOnchainInfo``, read via Solana RPC):
   dangerous ones (permanent delegate, transfer hook, transfer fee, frozen-by-default, ...) FAIL,
   and unknown ones are UNVERIFIED;
 - holder concentration counts only wallets (on-curve owners). Program-derived owners such as
-  pool vaults, bonding curves and lockers are reported but excluded. If fewer than 10 wallets
-  appear in the largest accounts, each missing one is assumed as large as the smallest account
-  seen, so the figure is an upper bound.
+  pool vaults, bonding curves and lockers are reported but excluded, and so are known exchange
+  wallets (``scheme1.safety.exchange_wallets``, D21). If fewer than 10 wallets remain in the largest
+  accounts, each missing one is assumed as large as the smallest account seen, so the figure is an
+  upper bound.
 Without on-chain data these checks are UNVERIFIED, so the token is blocked (DECISIONS.md D9).
 """
 
@@ -25,8 +26,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from scheme1.contracts import PoolSnapshot, SafetyCheck, SafetyReport, SafetyStatus, TokenOnchainInfo
+from scheme1.safety.exchange_wallets import EXCHANGE_WALLETS
 
-SAFETY_CONFIG_VERSION = "s1.1.0"
+SAFETY_CONFIG_VERSION = "s1.2.0"
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,7 @@ class SafetyConfig:
     max_snapshot_age: timedelta = timedelta(minutes=10)
     max_top_holder_pct: Decimal = Decimal(10)  # largest single wallet, % of supply
     max_top10_holders_pct: Decimal = Decimal(30)  # ten largest wallets together, % of supply
+    exchange_wallets: frozenset[str] = frozenset(EXCHANGE_WALLETS)  # left out of the holder check (D21)
     version: str = SAFETY_CONFIG_VERSION
 
 
@@ -161,8 +164,9 @@ def _concentration(info: TokenOnchainInfo, config: SafetyConfig) -> SafetyCheck:
     if info.holders is None:
         return SafetyCheck(name="holder_concentration", status=SafetyStatus.UNVERIFIED, observed="no data",
                            limit="required", detail=info.holders_error or "holder list unavailable")
-    wallets = [h for h in info.holders if not h.program_controlled]
     programs = [h for h in info.holders if h.program_controlled]
+    exchanges = [h for h in info.holders if not h.program_controlled and h.owner in config.exchange_wallets]
+    wallets = [h for h in info.holders if not h.program_controlled and h.owner not in config.exchange_wallets]
     top10 = sum(h.amount for h in wallets[:10])
     missing = max(0, 10 - len(wallets))
     if missing and info.accounts_seen >= 20:  # list was cut off: unseen wallets are at most the smallest seen
@@ -170,7 +174,10 @@ def _concentration(info: TokenOnchainInfo, config: SafetyConfig) -> SafetyCheck:
     top1 = wallets[0].amount if wallets else 0
     top1_pct, top10_pct = _pct(top1, info.supply), _pct(top10, info.supply)
     observed = (f"largest wallet {top1_pct:.2f}%, top 10 wallets {top10_pct:.2f}%; "
-                f"program-controlled (excluded) {_pct(sum(h.amount for h in programs), info.supply):.2f}%")
+                f"program-controlled (excluded) {_pct(sum(h.amount for h in programs), info.supply):.2f}%; "
+                f"exchanges (excluded) {_pct(sum(h.amount for h in exchanges), info.supply):.2f}%"
+                + (f" ({', '.join(EXCHANGE_WALLETS.get(h.owner, 'exchange') for h in exchanges[:5])})"
+                   if exchanges else ""))
     limit = f"largest <= {config.max_top_holder_pct}%, top 10 <= {config.max_top10_holders_pct}%"
     ok = top1_pct <= config.max_top_holder_pct and top10_pct <= config.max_top10_holders_pct
     return SafetyCheck(name="holder_concentration", status=SafetyStatus.PASS if ok else SafetyStatus.FAIL,
