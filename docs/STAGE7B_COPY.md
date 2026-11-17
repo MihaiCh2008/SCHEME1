@@ -76,7 +76,12 @@ New tests (266 in total, no network):
 
 - **Reading:** the last 40 transactions of each wallet: trader 3 trades in USDC, $300–500 a trade, and once sold everything within 4 minutes; trader 4 buys pump.fun coins for 1 SOL; traders 1 and 2 had no own trades among them (only spam).
 - **Safety on trader 4's recent coins:** all 4 had mint and freeze authority revoked and only metadata extensions (Token-2022, readable since the program-id fix in Stage 7); 3 of 4 passed the holder check; liquidity $3k–28k.
-- **Desk run:** see PROJECT_STATUS.md.
+- **Desk run** (`run --traders copy_traders.txt --pool <Fartcoin/SOL> --steps 15`, 21:22–21:40 UTC):
+  - Started watching all 4 wallets "from now on".
+  - **Copy:** trader 1 bought 8 SOL of `Hi5QUT…` at 21:22 → the desk found its pool, the coin passed the copy safety checks, and it bought 560,175 tokens for $24.74 (5% of the copy sleeve, with 1% slippage and a 1% fee). At the end: −2%, stop at −20%, following trader 1's sell.
+  - Trader 4 sold `DPmHer…` and trader 3 sold `tbzYC6…` (both bought before the desk started) → correctly ignored.
+  - **Bot:** FOMO BUY on Fartcoin (score +0.57 to +0.65), filled; +1.64% at the end, trailing stop moved up. This fill used the 21:20 open for a decision made at 21:23; that is the bug fixed in section 7, so the number doesn't count.
+  - End: total equity 1000.20, integrity ok.
 
 ## 7. Known limits
 

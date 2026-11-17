@@ -35,6 +35,8 @@ Live check on 2026-10-15: `python -m scheme1.agents.cli --pool 5zpyutJu9ee6jFymD
 
 Live check on 2026-11-17: `python -m scheme1.desk.cli run --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9 --steps 1` ran the full paper desk on BONK/SOL: HOLD (token failed safety checks), equity 1000.00. Safety checks on WIF, POPCAT, Fartcoin and MEW pools: all blocked by the holder rule (Fartcoin closest: top 10 wallets 31.3%). Found and fixed a wrong Token-2022 program id (see docs/STAGE7_PAPER.md section 7).
 
+Live check on 2026-11-17, 21:22–21:40 UTC: `python -m scheme1.desk.cli run --traders copy_traders.txt --pool Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw --steps 15` ran both sleeves. **Copy:** trader 1 bought 8 SOL of a new coin; the desk copied it ($24.74) after the copy safety checks passed. Two sells of coins bought before the start were correctly ignored. **Bot:** FOMO buy on Fartcoin, +1.64% at the end (its fill came before the late-decision fix, so it doesn't count). Total equity 1000.20, integrity ok.
+
 ## Missing access and limitations
 
 - **GeckoTerminal and DexScreener APIs work from the cloud session** (verified 2026-10-12).

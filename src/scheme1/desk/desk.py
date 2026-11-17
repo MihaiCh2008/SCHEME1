@@ -629,10 +629,11 @@ class PaperDesk:
             if not step.fills:
                 step.reasons = ["no current price: sells at the next candle's open"]
 
-    def save_cursors(self, cursors: dict[str, str]) -> None:
-        """Remember where each followed wallet was read up to."""
+    def save_cursors(self, cursors: dict[str, str], names: dict[str, str] | None = None) -> None:
+        """Remember where each followed wallet was read up to (and the names the user gave them)."""
         with self.store.transaction():
             self.cursors = dict(cursors)
+            self.trader_names.update(names or {})
             self._save_state()
 
     # -------------------------------------------------------------- rebalance

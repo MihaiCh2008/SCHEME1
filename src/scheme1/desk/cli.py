@@ -89,7 +89,7 @@ def copy_step(desk: PaperDesk, watcher: TraderWatcher | None, candles: CandleSto
             else:
                 sym = desk.copy_position_for(trade)
                 copies.append(desk.on_trader_trade(trade, now, exit_price=price_of(sym) if sym else None))
-        desk.save_cursors(polled.cursors)
+        desk.save_cursors(polled.cursors, {t.wallet: t.name for t in getattr(watcher, "traders", [])})
     for sym in desk.copy_symbols():
         fetched = ingest(provider, candles, sym, Interval.M1, now, limit=15)
         if fetched.report.status is DataStatus.UNAVAILABLE:

@@ -254,7 +254,7 @@ class PaperBroker:
             guard = None  # the position opened inside this candle (immediate fill): its prices partly came before
         if guard and state.held > 0 and not self.pending_exit(sym) and t_open - guard.opened_at >= guard.max_hold:
             order = self._new_exit(guard, OrderReason.TIME_LIMIT, state.held, candle.open, t_open, res)
-            res.notes.append(f"time limit: held {t_open - guard.opened_at}")
+            res.notes.append(f"time limit: held {int((t_open - guard.opened_at).total_seconds() // 60)} min")
             self._at_open(order, candle, state, res)
 
         guard = self._guards.get(sym)

@@ -71,6 +71,10 @@ class OpenPosition:
             raise ValueError("an open position needs a positive entry price and quantity")
 
 
+def _minutes(t: timedelta) -> str:
+    return f"{int(t.total_seconds() // 60)} min"
+
+
 def _ok(outputs: tuple[AgentOutput, ...]) -> dict[str, AgentOutput]:
     return {o.role: o for o in outputs if o.status is AgentStatus.OK}
 
@@ -125,7 +129,7 @@ def decide(x: AgentInputs, outputs: tuple[AgentOutput, ...], now: datetime, last
         exits = [
             (change_pct >= cfg.take_profit_pct, f"take profit: {change_pct:+.2f}% >= +{cfg.take_profit_pct}%"),
             (change_pct <= -cfg.stop_loss_pct, f"stop loss: {change_pct:+.2f}% <= -{cfg.stop_loss_pct}%"),
-            (held >= cfg.max_hold, f"time limit: held {held} >= {cfg.max_hold}"),
+            (held >= cfg.max_hold, f"time limit: held {_minutes(held)} >= {_minutes(cfg.max_hold)}"),
             (not x.safety.tradable, "token is no longer tradable"),
             (score <= cfg.exit_score, f"combined score {score:+.2f} <= {cfg.exit_score:+.2f}"),
         ]
@@ -134,7 +138,7 @@ def decide(x: AgentInputs, outputs: tuple[AgentOutput, ...], now: datetime, last
             signal = Signal.SELL
             notes = hits + notes
         else:
-            reasons.append(f"holding: {change_pct:+.2f}%, held {held}, score {score:+.2f}")
+            reasons.append(f"holding: {change_pct:+.2f}%, held {_minutes(held)}, score {score:+.2f}")
     else:
         if not x.safety.tradable:
             reasons.append("token failed safety checks")
