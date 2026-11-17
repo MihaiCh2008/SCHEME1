@@ -4,8 +4,9 @@ It runs outside the agents, reads its limits from ``RiskConfig`` (agents can't c
 every check every time and returns them all, passes included. Any failed check rejects.
 
 A SELL that only reduces a held position (an exit) skips the checks that only make sense for new
-risk (cash, size, exposure, token safety, frequency) and is allowed while the desk is DEGRADED or
-PAUSED, so a stop loss is never locked in. EMERGENCY_STOP rejects everything.
+risk (cash, size, exposure, token safety, frequency), passes data-quality, data-age and drawdown
+checks, and is allowed while the desk is DEGRADED or PAUSED, so a stop loss is never locked in.
+EMERGENCY_STOP rejects everything. ``short_sale`` and ``duplicate_or_conflict`` still apply to exits.
 
 Not built yet: ``correlated_exposure`` (needs rolling correlations between held tokens).
 """
@@ -20,7 +21,7 @@ from scheme1.contracts import (
     DataStatus, DeskState, OrderIntent, PortfolioSnapshot, RiskCheck, RiskVerdict, Side,
 )
 
-RISK_CONFIG_VERSION = "r1.0.0"
+RISK_CONFIG_VERSION = "r1.1.0"
 
 
 @dataclass(frozen=True)
@@ -76,8 +77,11 @@ def evaluate_risk(intent: OrderIntent, ctx: RiskContext, cfg: RiskConfig = RiskC
     allowed = {DeskState.NORMAL} | ({DeskState.DEGRADED, DeskState.PAUSED} if is_exit else set())
     checks.append(_check("desk_state", ctx.desk_state in allowed, ctx.desk_state.value,
                          "normal" + (" (exits also when degraded or paused)" if is_exit else "")))
-    checks.append(_check("data_quality", ctx.data_status is DataStatus.OK, ctx.data_status.value, "ok"))
-    checks.append(_check("data_age", ctx.data_age <= cfg.max_data_age, str(ctx.data_age), f"<= {cfg.max_data_age}"))
+    # An exit only reduces risk and fills at a later, real candle, so bad or old data must not lock it in.
+    checks.append(_check("data_quality", is_exit or ctx.data_status is DataStatus.OK, ctx.data_status.value,
+                         "ok (exits always allowed)"))
+    checks.append(_check("data_age", is_exit or ctx.data_age <= cfg.max_data_age, str(ctx.data_age),
+                         f"<= {cfg.max_data_age} (exits always allowed)"))
     checks.append(_check("short_sale", not is_exit or intent.quantity <= held,
                          f"sell {intent.quantity}, held {held}" if is_exit else "buy", "sell <= held"))
     checks.append(_check("duplicate_or_conflict", sym not in ctx.open_order_symbols,

@@ -188,3 +188,18 @@ def test_exits_as_soon_as_the_agents_stop_being_bullish():
     assert d.signal is Signal.SELL and "combined score" in d.explanation
     with pytest.raises(ValueError):
         StrategyConfig(trail_pct=Decimal(6))  # wider than the take profit
+
+
+def test_exits_pass_with_bad_or_old_data():
+    pf = portfolio(qty=Decimal(5000))
+    for kw in (dict(data_status=DataStatus.DEGRADED), dict(data_status=DataStatus.UNAVAILABLE),
+               dict(data_age=timedelta(hours=1))):
+        v = evaluate_risk(sell_intent(), ctx(pf, **kw))
+        assert v.approved, (kw, failed(v))
+    v = evaluate_risk(buy_intent(), ctx(data_status=DataStatus.DEGRADED))
+    assert not v.approved  # new buys still need good data
+
+
+def test_open_position_must_be_valid():
+    with pytest.raises(ValueError):
+        OpenPosition(entry_price=Decimal(0), opened_at=NOW, quantity=Decimal(1))

@@ -66,6 +66,10 @@ class OpenPosition:
     opened_at: datetime
     quantity: Decimal
 
+    def __post_init__(self) -> None:
+        if self.entry_price <= 0 or self.quantity <= 0:
+            raise ValueError("an open position needs a positive entry price and quantity")
+
 
 def _ok(outputs: tuple[AgentOutput, ...]) -> dict[str, AgentOutput]:
     return {o.role: o for o in outputs if o.status is AgentStatus.OK}
