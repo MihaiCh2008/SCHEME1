@@ -36,19 +36,19 @@ from scheme1.contracts import Candle
 @dataclass(frozen=True)
 class ProtectiveLevels:
     stop_price: Decimal
-    take_profit_price: Decimal
+    take_profit_price: Decimal | None  # None = no take profit (copy trades follow the trader up)
     trail_pct: Decimal | None = None  # None = fixed stop
     highest: Decimal = Decimal(0)  # highest high seen since entry
 
     @classmethod
-    def from_entry(cls, entry_price: Decimal, stop_loss_pct: Decimal, take_profit_pct: Decimal,
+    def from_entry(cls, entry_price: Decimal, stop_loss_pct: Decimal, take_profit_pct: Decimal | None,
                    trail_pct: Decimal | None = None) -> ProtectiveLevels:
         if entry_price <= 0:
             raise ValueError("entry price must be positive")
         if trail_pct is not None and not 0 < trail_pct < 100:
             raise ValueError("trail must be between 0 and 100 percent")
         return cls(stop_price=entry_price * (1 - stop_loss_pct / 100),
-                   take_profit_price=entry_price * (1 + take_profit_pct / 100),
+                   take_profit_price=None if take_profit_pct is None else entry_price * (1 + take_profit_pct / 100),
                    trail_pct=trail_pct, highest=entry_price)
 
     def after(self, candle: Candle) -> ProtectiveLevels:
@@ -76,11 +76,11 @@ def check_candle(candle: Candle, levels: ProtectiveLevels, slippage_pct: Decimal
     stop, tp = levels.stop_price, levels.take_profit_price
     if candle.open <= stop:
         reason, gapped, ref = "stop_loss", True, candle.open
-    elif candle.open >= tp:
+    elif tp is not None and candle.open >= tp:
         reason, gapped, ref = "take_profit", True, candle.open
     elif candle.low <= stop:  # also when the high reached the take profit in the same candle
         reason, gapped, ref = "stop_loss", False, stop
-    elif candle.high >= tp:
+    elif tp is not None and candle.high >= tp:
         reason, gapped, ref = "take_profit", False, tp
     else:
         return None

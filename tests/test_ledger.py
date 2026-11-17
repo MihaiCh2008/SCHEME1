@@ -92,3 +92,15 @@ def test_round_trips_report_each_trade():
     assert first.pnl == D("3.8") and first.pnl_pct == D("3.8") and first.closed_at == T + timedelta(minutes=10)
     assert first.exit_reasons == ["take_profit", "stop_loss"]
     assert second.closed_at is None and second.pnl is None and second.quantity == 10
+
+
+def test_capital_moves_keep_the_books_balanced_and_replay_exactly():
+    led = Ledger(D(500))
+    led.apply(fill(Side.BUY, 100, 1))
+    led.move_capital(D(-50))                       # rebalancing takes 50 of the free cash away
+    led.apply(fill(Side.SELL, 100, "1.2", i=1))
+    assert led.initial_cash == D(450) and led.cash == D(450) + led.realized_total
+    with pytest.raises(AccountingError):
+        led.move_capital(D(-10_000))               # more than the free cash
+    again = Ledger.rebuild(D(500), [fill(Side.BUY, 100, 1), D(-50), fill(Side.SELL, 100, "1.2", i=1)])
+    assert again.cash == led.cash and again.realized_total == led.realized_total

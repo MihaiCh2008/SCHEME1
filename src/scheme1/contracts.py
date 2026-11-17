@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION = "1.5.0"
+SCHEMA_VERSION = "1.6.0"
 
 
 def _utc(value: datetime) -> datetime:
@@ -36,6 +36,7 @@ UTCDateTime = Annotated[datetime, AfterValidator(_utc)]
 Price = Annotated[Decimal, Field(gt=0)]
 Quantity = Annotated[Decimal, Field(ge=0)]
 UnitScore = Annotated[float, Field(ge=-1.0, le=1.0)]
+Sleeve = Literal["bot", "copy"]  # which share of the money an order belongs to (D23)
 
 
 def new_id(prefix: str) -> str:
@@ -174,6 +175,7 @@ class PoolSnapshot(Contract):
     base_token_mint: str | None = None
     liquidity_usd: Annotated[Decimal, Field(ge=0)] | None = None
     pool_created_at: UTCDateTime | None = None
+    base_price_usd: Annotated[Decimal, Field(gt=0)] | None = None  # price of the base token at retrieved_at
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
@@ -376,6 +378,7 @@ class OrderIntent(Contract):
     quantity: Annotated[Decimal, Field(gt=0)]
     limit_price: Price | None = None
     created_at: UTCDateTime
+    sleeve: Sleeve = "bot"
 
     @model_validator(mode="after")
     def _limit_has_price(self) -> OrderIntent:
@@ -454,6 +457,7 @@ class OrderReason(StrEnum):
     STOP_LOSS = "stop_loss"  # initial or trailing stop
     TAKE_PROFIT = "take_profit"
     TIME_LIMIT = "time_limit"
+    TRADER_EXIT = "trader_exit"  # the trader a copy position followed has sold
 
 
 class Order(Contract):
@@ -477,6 +481,7 @@ class Order(Contract):
     ttl_candles: int | None = Field(default=None, ge=1)  # None: rests until filled or canceled
     candles_seen: int = Field(default=0, ge=0)
     detail: str = ""  # why it was rejected, canceled or expired
+    sleeve: Sleeve = "bot"
 
     @property
     def remaining(self) -> Decimal:
@@ -520,6 +525,21 @@ class Fill(Contract):
     candle_open_time: UTCDateTime  # the candle whose prices made this fill possible
     filled_at: UTCDateTime
     liquidity: Literal["taker", "maker"]
+
+
+class TraderTrade(Contract):
+    """A swap signed by a trader the user follows, read from the chain (copy trading, D23)."""
+
+    trader: str  # the name the user gave the wallet
+    wallet: str
+    signature: str
+    slot: int = Field(ge=0)
+    block_time: UTCDateTime
+    mint: str  # the token bought or sold
+    side: Side
+    token_amount: Annotated[Decimal, Field(gt=0)]
+    quote: Literal["SOL", "USDC", "USDT"]
+    quote_amount: Annotated[Decimal, Field(gt=0)]  # spent on a buy, received on a sell (network fees included)
 
 
 class Position(Contract):

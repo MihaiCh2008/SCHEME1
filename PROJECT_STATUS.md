@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-11-17 (Stage 7)_
+_Last updated: 2026-11-17 (Stage 7b: two sleeves and copy trading)_
 
 | # | Stage | Status |
 | --- | --- | --- |
@@ -12,6 +12,7 @@ _Last updated: 2026-11-17 (Stage 7)_
 | 5 | Research agents | **Phase 1 done** (deterministic): [docs/STAGE5_AGENTS.md](docs/STAGE5_AGENTS.md); code in `src/scheme1/agents/`. Phase 2 (optional LLM) not started |
 | 6 | Decision and risk engines | **Done**: [docs/STAGE6_DECISION_RISK.md](docs/STAGE6_DECISION_RISK.md); code in `src/scheme1/decision/` and `src/scheme1/risk/`. Quick-trade strategy with take profit, stop loss and time limit (D15); trailing stop checked inside each candle (D16, D17). Safety review 2026-11-17: exits no longer blocked by bad data |
 | 7 | Paper execution and accounting | **Done**: [docs/STAGE7_PAPER.md](docs/STAGE7_PAPER.md); code in `src/scheme1/broker/`, `src/scheme1/accounting/`, `src/scheme1/desk/`. Paper broker, ledger, desk states, hash-chained audit log, 5% daily loss limit (D18, D19). Run it with `python -m scheme1.desk.cli run --pool <address>` |
+| 7b | Two sleeves and copy trading | **Done**: [docs/STAGE7B_COPY.md](docs/STAGE7B_COPY.md); code in `src/scheme1/copytrade/` and the desk. Money split 50/50 between the bot and copying the user's 4 traders (D22, D23). Run with `python -m scheme1.desk.cli run --traders copy_traders.txt --pool <address>` |
 | 8 | Backtesting | Not started |
 | 9 | End-to-end proof | Not started |
 | 10 | Performance and reliability | Not started |
@@ -26,7 +27,7 @@ Command (from the repo root, inside `.venv`):
 python -m pytest
 ```
 
-Result on 2026-11-17, Python 3.13.16: **234 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 26 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 7 ledger, 17 broker, 9 audit-store, 12 desk, 2 desk-command tests). No test uses the network.
+Result on 2026-11-17, Python 3.13.16: **266 passed, 0 failed, 0 skipped** (23 contract, 44 data-pipeline, 12 feature, 15 safety, 26 on-chain, 14 agent, 35 decision and risk, 18 protective-exit, 8 ledger, 17 broker, 9 audit-store, 13 desk, 3 desk-command, 14 copy-reading, 15 copy-desk tests). No test uses the network.
 
 Live check on 2026-10-12 from the cloud session: `python -m scheme1.data.cli --pool 5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9` ingested 299 closed 5m candles and 999 closed 1m candles of BONK/SOL, status ok, no gaps.
 
@@ -60,13 +61,10 @@ Target is now **Solana memecoins, paper trading only** (see DECISIONS.md D9). St
 
 Live trading through a dedicated bot wallet is documented as an idea with entry gates in [docs/future/LIVE_TRADING.md](docs/future/LIVE_TRADING.md). It is out of scope until those gates are met.
 
-## New direction from the user (2026-11-17), waiting for answers
+## Two strategies (built 2026-11-17, Stage 7b)
 
-Two strategies with separate money (proposed split 50/50, then shifting slowly to the better one after 30 trades each, each keeping at least 20%):
-- **A. Bot trades on FOMO**: buy when a coin suddenly pumps with big volume (no price-jump limit, D20).
-- **B. Copy traders** the user follows on the pump.fun app: when one of their wallets buys, the bot buys too (smaller size, exit when the trader sells or on a wider safety stop).
-
-Decided: holder rule b (D21); new pump.fun coins allowed for copy trades only (D22). Waiting for: the traders' Solana wallet addresses (from the pump.fun app profiles).
+- **bot** (50%): FOMO trades on watched pools (D20).
+- **copy** (50%): copies the 4 wallets in `copy_traders.txt` (from the user's pump.fun app). New pump.fun coins are allowed for copy trades only (D22). Rules in D23.
 
 ## Holder rule (decided 2026-11-17)
 

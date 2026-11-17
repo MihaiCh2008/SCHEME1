@@ -6,6 +6,10 @@ Verified 2026-10-12:
   as ``solana_<mint>``. Shares the ~10 calls/minute budget with candle requests.
 - DexScreener ``GET /latest/dex/pairs/solana/{pair}``: ``pairs[0].liquidity.usd`` (number),
   ``pairs[0].pairCreatedAt`` (unix milliseconds), ``pairs[0].baseToken.address``.
+- Prices (copy trades, 2026-11-17): GeckoTerminal ``attributes.base_token_price_usd``, DexScreener ``priceUsd``.
+- GeckoTerminal ``GET /api/v2/networks/solana/tokens/{mint}/pools`` lists a token's pools with the same
+  attributes; ``main_pool`` picks the one with the most 24-hour volume where the token is the base.
+  DexScreener reports no liquidity for pump.fun bonding curves.
 Neither response is stored (provider-data retention, D11).
 """
 
@@ -41,6 +45,11 @@ def _get(client: PacedClient, provider: str, url: str) -> tuple[bytes, Any]:
         raise ProviderError(provider, "bad_payload", str(err)) from err
 
 
+def _price(value: Any) -> Decimal | None:
+    d = _decimal(value)
+    return d if d is not None and d > 0 else None
+
+
 def _decimal(value: Any) -> Decimal | None:
     if value is None or isinstance(value, bool):
         return None
@@ -70,12 +79,35 @@ class GeckoTerminalPools:
             mint_id = (data.get("relationships", {}).get("base_token", {}).get("data") or {}).get("id", "")
         except (KeyError, TypeError, AttributeError) as err:
             raise ProviderError(self.name, "bad_payload", f"{type(err).__name__}: {err}") from err
-        created = attrs.get("pool_created_at")
+        return self._to_snapshot(symbol, network, attrs, mint_id, body)
+
+    def main_pool(self, mint: str, network: str = "solana") -> PoolSnapshot:
+        """The token's most traded pool (24-hour volume) in which it is the base token."""
+        body, payload = _get(self._client, self.name, f"{BASE_URL}/networks/{network}/tokens/{mint}/pools?page=1")
+        best: tuple[Decimal, dict, str] | None = None
+        try:
+            for pool in payload["data"]:
+                attrs = pool["attributes"]
+                base = (pool.get("relationships", {}).get("base_token", {}).get("data") or {}).get("id", "")
+                if base != f"{network}_{mint}":
+                    continue
+                volume = _decimal((attrs.get("volume_usd") or {}).get("h24")) or Decimal(0)
+                if best is None or volume > best[0]:
+                    best = (volume, attrs, base)
+        except (KeyError, TypeError, AttributeError) as err:
+            raise ProviderError(self.name, "bad_payload", f"{type(err).__name__}: {err}") from err
+        if best is None:
+            raise ProviderError(self.name, "not_found", f"no pool with {mint} as the base token")
+        _, attrs, base = best
+        return self._to_snapshot(f"{network}:{attrs['address']}", network, attrs, base, body)
+
+    def _to_snapshot(self, symbol: str, network: str, attrs: dict, mint_id: str, body: bytes) -> PoolSnapshot:
         return PoolSnapshot(
             symbol=symbol, provider=self.name, retrieved_at=self._now(),
             base_token_mint=mint_id.removeprefix(f"{network}_") if mint_id.startswith(f"{network}_") else None,
             liquidity_usd=_decimal(attrs.get("reserve_in_usd")),
-            pool_created_at=_parse_iso(created),
+            pool_created_at=_parse_iso(attrs.get("pool_created_at")),
+            base_price_usd=_price(attrs.get("base_token_price_usd")),
             content_sha256=hashlib.sha256(body).hexdigest(),
         )
 
@@ -106,6 +138,7 @@ class DexScreenerPools:
                 base_token_mint=(pair.get("baseToken") or {}).get("address"),
                 liquidity_usd=_decimal((pair.get("liquidity") or {}).get("usd")),
                 pool_created_at=created,
+                base_price_usd=_price(pair.get("priceUsd")),
                 content_sha256=hashlib.sha256(body).hexdigest(),
             )
         except (TypeError, AttributeError, ValueError, OverflowError) as err:

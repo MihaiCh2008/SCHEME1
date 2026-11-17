@@ -72,7 +72,7 @@ def test_a_full_trade_from_signal_to_stop():
     assert exit_.side is Side.SELL
     trade, = desk.status()["trades"]
     assert trade.exit_reasons == ["stop_loss"] and trade.closed_at is not None
-    assert desk.ledger.quantity(SYMBOL) == 0 and desk.ledger.cash == D(1000) + trade.pnl
+    assert desk.ledger.quantity(SYMBOL) == 0 and desk.ledger.cash == D(500) + trade.pnl   # the bot's half
     assert desk.check() == [] and desk.state is DeskState.NORMAL
 
 
@@ -140,7 +140,8 @@ def test_books_that_dont_match_the_last_snapshot_stop_the_desk(tmp_path):
     path = tmp_path / "desk.db"
     desk = PaperDesk(DeskStore(path), now=T0)
     run(desk, TRADE, stop=65)
-    stray = Fill(order_id="ord_stray", symbol=SYMBOL, side=Side.BUY, quantity=D(1), price=D(1), reference_price=D(1),
+    entry_order = next(iter(desk.store.orders()))       # a real order, so only the books disagree
+    stray = Fill(order_id=entry_order, symbol=SYMBOL, side=Side.BUY, quantity=D(1), price=D(1), reference_price=D(1),
                  fee=D(0), candle_open_time=T0, filled_at=T0, liquidity="taker")
     with desk.store.transaction():                 # a fill the books never saw, with a valid hash
         desk.store.append("fill", stray.fill_id, T0, stray)
@@ -155,7 +156,8 @@ def test_drawdown_pauses_the_desk_until_the_operator_resumes():
     run(desk, TRADE, stop=66)
     assert desk.state is DeskState.PAUSED and "drawdown" in desk.flags["paused"]
     desk.resume(TRADE[65].close_time)
-    assert desk.state is DeskState.NORMAL and desk.equity["peak"] == desk.equity["last"]
+    lasts = sum(D(e["last"]) for e in desk.equity["sleeves"].values())
+    assert desk.state is DeskState.NORMAL and D(desk.equity["peak"]) == lasts
 
 
 def test_lost_working_state_rebuilds_the_protective_exits(tmp_path):
@@ -198,3 +200,19 @@ def test_exits_are_never_blocked_by_the_desk_state():
 def test_config_refuses_costs_the_strategy_does_not_expect():
     with pytest.raises(ValueError):
         DeskConfig(broker=BrokerConfig(fee_pct=D(1)))
+
+
+def test_a_late_live_decision_never_fills_at_an_older_price():
+    desk = PaperDesk(DeskStore(), now=T0)
+    run(desk, TRADE, stop=63)
+    c = TRADE[63]
+    late = c.close_time + timedelta(minutes=3)                 # the desk started mid-period
+    feats = compute_features(TRADE[:64], SYMBOL, Interval.M5, c.close_time)
+    result = desk.on_candle(CandleInputs(c, report(), SAFE, feats), now=late)
+    assert result.decision.signal is Signal.BUY and result.orders[0].not_before == late
+    assert step(desk, TRADE, 64).fills == []                   # candle 64 opened before the decision
+    assert step(desk, TRADE, 65).fills[0].candle_open_time == TRADE[65].open_time
+    quick = PaperDesk(DeskStore(), now=T0)
+    run(quick, TRADE, stop=63)
+    in_time = quick.on_candle(CandleInputs(c, report(), SAFE, feats), now=c.close_time + timedelta(seconds=40))
+    assert in_time.orders[0].not_before == c.close_time        # within 60 s: the next open, as before

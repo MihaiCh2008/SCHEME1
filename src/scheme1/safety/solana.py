@@ -1,8 +1,9 @@
 """Read-only Solana on-chain data: mint authorities, Token-2022 extensions and largest holders.
 
-Uses three standard JSON-RPC methods (no keys, no signing, no transactions):
+Uses standard read-only JSON-RPC methods (no keys, no signing, no transactions sent):
 ``getAccountInfo`` (jsonParsed mint), ``getTokenLargestAccounts`` (top 20 token accounts) and
-``getMultipleAccounts`` (owners of those accounts).
+``getMultipleAccounts`` (owners of those accounts) for token safety; ``getSignaturesForAddress`` and
+``getTransaction`` to read the trades of wallets the user follows (copy trading). Each costs 1 Helius credit.
 
 The RPC URL comes from ``SCHEME1_SOLANA_RPC_URL`` (default: the public mainnet endpoint).
 Provider URLs such as Helius carry an API key, so the URL is never logged or put in an error.
@@ -89,6 +90,25 @@ class SolanaRpc:
             detail = payload.get("error") if isinstance(payload, dict) else payload
             raise ProviderError(self.name, "rpc_error", f"{method}: {str(detail)[:200]}")
         return payload["result"]
+
+    def signatures(self, address: str, *, until: str | None = None, before: str | None = None,
+                   limit: int = 100) -> list[dict[str, Any]]:
+        """Newest first: transactions that mention ``address`` (signed by it or not), back to ``until``."""
+        options: dict[str, Any] = {"limit": limit}
+        if until:
+            options["until"] = until
+        if before:
+            options["before"] = before
+        result = self._call("getSignaturesForAddress", [address, options])
+        if not isinstance(result, list):
+            raise ProviderError(self.name, "bad_payload", "getSignaturesForAddress: not a list")
+        return result
+
+    def transaction(self, signature: str) -> dict[str, Any] | None:
+        """One transaction, jsonParsed. ``None`` if the node doesn't have it (yet)."""
+        # Version 1 transactions exist since 2026; asking for less makes the node refuse them.
+        return self._call("getTransaction", [signature, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 1,
+                                                         "commitment": "confirmed"}])
 
     def token_info(self, mint: str) -> TokenOnchainInfo:
         if len(b58decode(mint)) != 32:  # mints can be PDAs, so only the length is checked

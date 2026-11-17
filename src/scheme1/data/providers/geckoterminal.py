@@ -55,6 +55,13 @@ def split_symbol(symbol: str) -> tuple[str, str]:
     return network, address
 
 
+def geckoterminal_client(min_interval_s: float = 7.5) -> PacedClient:
+    """One paced client for every GeckoTerminal request (candles and pool data), so together they stay
+    under the ~10 calls/minute limit (API Terms 4.2). 7.5 s apart = 8 calls a minute."""
+    return PacedClient(UrllibTransport(), min_interval_s=min_interval_s, retry=RetryPolicy(),
+                       headers={"Accept": API_VERSION_HEADER, "User-Agent": "scheme1-paper-desk/0.1"})
+
+
 class GeckoTerminalProvider:
     name = "geckoterminal"
 

@@ -35,12 +35,20 @@ SAFETY_CONFIG_VERSION = "s1.2.0"
 class SafetyConfig:
     min_liquidity_usd: Decimal = Decimal(25_000)
     max_liquidity_disagreement: Decimal = Decimal("1.5")  # higher / lower
+    min_liquidity_sources: int = 2  # providers that must report liquidity (copy trades: 1, D23)
     min_pool_age: timedelta = timedelta(hours=24)
     max_snapshot_age: timedelta = timedelta(minutes=10)
     max_top_holder_pct: Decimal = Decimal(10)  # largest single wallet, % of supply
     max_top10_holders_pct: Decimal = Decimal(30)  # ten largest wallets together, % of supply
     exchange_wallets: frozenset[str] = frozenset(EXCHANGE_WALLETS)  # left out of the holder check (D21)
     version: str = SAFETY_CONFIG_VERSION
+
+
+# Copy trades (D22, D23): pump.fun coins are hours old and DexScreener reports no liquidity for their
+# bonding curves. So no age rule, one liquidity source is enough, and $5k is the floor. Every other check
+# (mint, freeze, extensions, holders, base token) stays the same.
+COPY_SAFETY = SafetyConfig(min_liquidity_usd=Decimal(5_000), min_pool_age=timedelta(0), min_liquidity_sources=1,
+                           version=SAFETY_CONFIG_VERSION + "-copy")
 
 
 ONCHAIN_CHECKS = ("mint_authority_revoked", "freeze_authority_revoked", "token_extensions_safe",
@@ -83,10 +91,12 @@ def _base_token(snaps: list[PoolSnapshot], note: str) -> SafetyCheck:
 def _liquidity(snaps: list[PoolSnapshot], config: SafetyConfig, note: str) -> SafetyCheck:
     values = {s.provider: s.liquidity_usd for s in snaps if s.liquidity_usd is not None}
     observed = "; ".join(f"{p}=${v:,.0f}" for p, v in sorted(values.items())) or "no data"
-    limit = f">= ${config.min_liquidity_usd:,.0f} (lower of two providers)"
-    if len(values) < 2:
+    sources = config.min_liquidity_sources
+    limit = f">= ${config.min_liquidity_usd:,.0f} (lower of the providers, at least {sources})"
+    if len(values) < sources:
+        words = {1: "one provider", 2: "two providers"}.get(sources, f"{sources} providers")
         return SafetyCheck(name="min_liquidity", status=SafetyStatus.UNVERIFIED, observed=observed, limit=limit,
-                           detail=note or "fewer than two providers reported liquidity")
+                           detail=note or f"fewer than {words} reported liquidity")
     low, high = min(values.values()), max(values.values())
     if low == 0 or high / low > config.max_liquidity_disagreement:
         return SafetyCheck(name="min_liquidity", status=SafetyStatus.UNVERIFIED, observed=observed, limit=limit,

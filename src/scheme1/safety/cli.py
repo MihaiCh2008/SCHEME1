@@ -13,15 +13,17 @@ from datetime import datetime, timezone
 from scheme1.contracts import PoolSnapshot, SafetyReport, TokenOnchainInfo
 from scheme1.data.providers.base import ProviderError
 from scheme1.data.providers.geckoterminal import ATTRIBUTION, pool_symbol
-from scheme1.safety.checks import evaluate
+from scheme1.safety.checks import SafetyConfig, evaluate
 from scheme1.safety.pools import DexScreenerPools, GeckoTerminalPools
 from scheme1.safety.solana import SolanaRpc
 
 
-def check_pool(symbol: str) -> SafetyReport:
-    """Fetch both pool snapshots and the on-chain data, then evaluate. Provider problems become warnings."""
+def check_pool(symbol: str, gecko: GeckoTerminalPools | None = None, dex: DexScreenerPools | None = None,
+               rpc: SolanaRpc | None = None, config: SafetyConfig | None = None) -> SafetyReport:
+    """Fetch both pool snapshots and the on-chain data, then evaluate. Provider problems become warnings.
+    Pass shared clients so GeckoTerminal's request budget is shared with the candle requests."""
     snaps: list[PoolSnapshot] = []
-    for source in (GeckoTerminalPools(), DexScreenerPools()):
+    for source in (gecko or GeckoTerminalPools(), dex or DexScreenerPools()):
         try:
             snaps.append(source.snapshot(symbol))
         except ProviderError as err:
@@ -30,11 +32,11 @@ def check_pool(symbol: str) -> SafetyReport:
     mints = {s.base_token_mint for s in snaps if s.base_token_mint}
     if len(mints) == 1:
         try:
-            onchain = SolanaRpc().token_info(mints.pop())
+            onchain = (rpc or SolanaRpc()).token_info(mints.pop())
         except ProviderError as err:
             print(f"warning: {err}")
 
-    return evaluate(symbol, snaps, datetime.now(timezone.utc), onchain=onchain)
+    return evaluate(symbol, snaps, datetime.now(timezone.utc), config or SafetyConfig(), onchain=onchain)
 
 
 def main(argv: list[str] | None = None) -> int:

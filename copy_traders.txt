@@ -1,0 +1,6 @@
+# Wallets the paper desk copies (copy trading, DECISIONS.md D22/D23). One per line: name address.
+# Given by the user on 2026-11-17 (traders they follow on the pump.fun app). Solana addresses only.
+trader1 CE44oKS3wpUerx8afyeii56u5oQjBLZknzm4Q2CYHUz9
+trader2 2QrfK8gf3vBcFfuaCJbFxGk3w1JxwjamGE9aGwdQHFas
+trader3 DrJ6SnDXkEsPeGdmSs93v5rwWumv5QMvAGSZjAyWSd5o
+trader4 FQpu9hW7C5p7irsXYRDHjtBKFc6ooNWni2TX1S6VHxRz

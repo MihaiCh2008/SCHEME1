@@ -131,6 +131,13 @@ class DeskStore:
         rows = self._db.execute(sql, (kind,) if kind else ()).fetchall()
         return [{**json.loads(p), "_seq": s, "_at": a, "_kind": k} for s, a, k, p in rows]
 
+    def records_of(self, *kinds: str) -> list[dict[str, Any]]:
+        """Records of several kinds, interleaved in the order they were written."""
+        marks = ",".join("?" for _ in kinds)
+        rows = self._db.execute(f"SELECT seq, at, kind, payload FROM audit_log WHERE kind IN ({marks}) ORDER BY seq",
+                                kinds).fetchall()
+        return [{**json.loads(p), "_seq": s, "_at": a, "_kind": k} for s, a, k, p in rows]
+
     def fills(self) -> list[Fill]:
         return [Fill.model_validate(_clean(r)) for r in self.records("fill")]
 
@@ -181,6 +188,11 @@ class DeskStore:
     def get_state(self, key: str, default: Any = None) -> Any:
         row = self._db.execute("SELECT value FROM desk_state WHERE key = ?", (key,)).fetchone()
         return json.loads(row[0]) if row else default
+
+
+def clean(record: dict[str, Any]) -> dict[str, Any]:
+    """A record without the ``_seq``/``_at``/``_kind`` keys ``records`` adds."""
+    return _clean(record)
 
 
 def _clean(record: dict[str, Any]) -> dict[str, Any]:

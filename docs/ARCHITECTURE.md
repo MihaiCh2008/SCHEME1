@@ -40,6 +40,7 @@ The **backtest** runs the same Validator → Features → Agents → Decision �
 | `risk` | `OrderIntent` + portfolio + desk state + data status | `RiskVerdict` with every check listed | always produces a verdict; any failed check rejects |
 | `broker` | approved `OrderIntent`, later candles | `Order` versions, `Fill`s; runs the protective and time-limit exits itself (D19) | `REJECTED`, `EXPIRED`, `CANCELED` |
 | `accounting` | fills, marks | `PortfolioSnapshot`, trade list | invariant violation raises and halts the desk (`EMERGENCY_STOP`) |
+| `copytrade` | the followed wallets (Solana RPC) | `TraderTrade`s, copied by the desk into the copy sleeve (D22, D23) | an unreadable wallet is skipped for that round |
 | `desk` (storage, states, step) | one closed candle + its data, features and safety report | every record above in a hash-chained audit log, one transaction per step | transaction rollback; startup integrity check |
 | `backtest` | dataset id, config, period | run record, trades, equity curve, metrics | `insufficient_sample` reported, never a made-up number |
 | `api` | HTTP | JSON from persisted records only | 503 with reason when a dependency is down |

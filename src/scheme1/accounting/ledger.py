@@ -8,8 +8,10 @@ Rules
   the part sold, so it is net of every fee.
 - Money is rounded to ``MONEY_STEP``: costs and fees up, proceeds down (never in our favour).
 - Invariants, checked on every fill before anything changes: cash never goes below zero, nothing is sold
-  that isn't held, and cash + open cost basis − realized P&L == initial cash (nothing appears or vanishes).
+  that isn't held, and cash + open cost basis − realized P&L == capital (nothing appears or vanishes).
   A violation raises ``AccountingError`` and the desk goes to EMERGENCY_STOP (ARCHITECTURE.md section 2).
+- One ledger per sleeve (D23). ``move_capital`` moves free cash in or out when the split is rebalanced;
+  the capital moves with it, so the invariant still holds.
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ class Ledger:
     def __init__(self, initial_cash: Decimal):
         if initial_cash <= 0:
             raise ValueError("initial cash must be positive")
-        self.initial_cash = initial_cash
+        self.initial_cash = initial_cash  # capital: start cash plus money moved in, minus money moved out
         self.cash = initial_cash
         self.fees_paid = ZERO
         self.realized_total = ZERO
@@ -89,6 +91,13 @@ class Ledger:
         self.cash, self.realized_total, self._holdings = cash, realized_total, holdings
         self.fees_paid += fill.fee
 
+    def move_capital(self, amount: Decimal) -> None:
+        """Money moved into (positive) or out of (negative) this ledger. Only free cash can leave."""
+        if self.cash + amount < 0:
+            raise AccountingError(f"can't move {-amount} out: only {self.cash} cash is free")
+        self.cash += amount
+        self.initial_cash += amount
+
     # ---------------------------------------------------------------- reading
 
     def quantity(self, symbol: str) -> Decimal:
@@ -116,10 +125,14 @@ class Ledger:
         return snapshot.cash == self.cash and snapshot.positions == self.positions()
 
     @classmethod
-    def rebuild(cls, initial_cash: Decimal, fills: Iterable[Fill]) -> Ledger:
+    def rebuild(cls, initial_cash: Decimal, events: Iterable[Fill | Decimal]) -> Ledger:
+        """Replay fills and capital moves (``Decimal``) in the order they happened."""
         ledger = cls(initial_cash)
-        for fill in fills:
-            ledger.apply(fill)
+        for event in events:
+            if isinstance(event, Fill):
+                ledger.apply(event)
+            else:
+                ledger.move_capital(event)
         return ledger
 
 
